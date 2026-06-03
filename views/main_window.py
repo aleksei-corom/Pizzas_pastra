@@ -104,11 +104,11 @@ class MainWindow(QMainWindow):
         self._status_bar.addPermanentWidget(self._status_left)
         self._status_bar.addPermanentWidget(self._clock_label)
 
-        # Inicializar estado de impresora
-        self._update_printer_status()
+        # Inicializar estado de impresora (diferido para no bloquear constructor)
         self._printer_timer = QTimer(self)
         self._printer_timer.timeout.connect(self._update_printer_status)
         self._printer_timer.start(30000)  # Re-verificar cada 30 segundos
+        QTimer.singleShot(100, self._update_printer_status)  # Primer check async
 
     def _navigate(self, name: str):
         """Navega a una vista por nombre."""
