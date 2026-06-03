@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database
+*.db
+
+# Logs
+logs/
+
+# Superpowers (cloned skills repo)
+.superpowers/
+
+# OS
+Thumbs.db
+.DS_Store
+nul
+installer_output/

@@ -1,0 +1,109 @@
+"""Gestor de sesión del usuario actual."""
+
+from database.models import Usuario
+
+
+# Módulos accesibles por rol
+ROLE_ACCESS = {
+    "admin": ["dashboard", "pos", "menu", "ordenes", "domicilios", "cocina", "reportes", "contabilidad", "ajustes", "usuarios"],
+    "cajero": ["pos", "ordenes", "domicilios", "cocina"],
+}
+
+
+class Session:
+    """Singleton que mantiene la sesión del usuario logueado y sus preferencias.
+
+    Las preferencias se cargan desde la DB al iniciar sesión y se persisten
+    automáticamente al cambiarlas. Esto permite que cada usuario tenga su
+    propia configuración (ej: impresora predeterminada).
+    """
+
+    _instance = None
+
+    def __init__(self):
+        self._current_user: Usuario | None = None
+        self._preferences: dict[str, str] = {}
+
+    @classmethod
+    def get(cls) -> "Session":
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def login(self, user: Usuario):
+        """Establece el usuario de la sesión y carga sus preferencias."""
+        self._current_user = user
+        self._load_preferences()
+
+    def logout(self):
+        """Cierra la sesión actual y limpia preferencias."""
+        self._current_user = None
+        self._preferences.clear()
+
+    # ─── Preferencias por usuario ───
+
+    def _load_preferences(self):
+        """Carga todas las preferencias del usuario desde la DB."""
+        if not self._current_user:
+            return
+        try:
+            from database.db_manager import DatabaseManager
+            db = DatabaseManager()
+            prefs = db.get_all_user_preferences(self._current_user.id)
+            self._preferences = prefs
+        except Exception:
+            self._preferences = {}
+
+    def _save_preference(self, key: str, value: str):
+        """Persiste una preferencia a la DB."""
+        if not self._current_user:
+            return
+        try:
+            from database.db_manager import DatabaseManager
+            db = DatabaseManager()
+            db.set_user_preference(self._current_user.id, key, value)
+        except Exception:
+            pass
+
+    def get_preference(self, key: str, default: str | None = None) -> str | None:
+        """Obtiene una preferencia del usuario actual.
+
+        Args:
+            key: Nombre de la preferencia.
+            default: Valor por defecto si no existe.
+
+        Returns:
+            El valor de la preferencia o el default si no está configurada.
+        """
+        return self._preferences.get(key, default)
+
+    def set_preference(self, key: str, value: str):
+        """Establece una preferencia del usuario y la persiste en DB."""
+        self._preferences[key] = value
+        self._save_preference(key, value)
+
+    # ─── Propiedades de usuario ───
+
+    @property
+    def user(self) -> Usuario | None:
+        return self._current_user
+
+    @property
+    def is_logged_in(self) -> bool:
+        return self._current_user is not None
+
+    def is_admin(self) -> bool:
+        return self._current_user is not None and self._current_user.rol == "admin"
+
+    def has_access(self, module_name: str) -> bool:
+        """Verifica si el usuario actual tiene acceso a un módulo."""
+        if self._current_user is None:
+            return False
+        allowed = ROLE_ACCESS.get(self._current_user.rol, [])
+        return module_name in allowed
+
+    def get_allowed_modules(self) -> list[str]:
+        """Retorna la lista de módulos accesibles para el usuario actual."""
+        if self._current_user is None:
+            return []
+        return ROLE_ACCESS.get(self._current_user.rol, [])
