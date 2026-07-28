@@ -68,9 +68,9 @@ class VariantesDialog(QDialog):
 
         self._var_precio = QDoubleSpinBox()
         self._var_precio.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
-        self._var_precio.setRange(0, 999999.99)
+        self._var_precio.setRange(-999999.99, 999999.99)
         self._var_precio.setDecimals(2)
-        self._var_precio.setValue(2.00)
+        self._var_precio.setValue(0.00)
         self._var_precio.setFixedHeight(36)
         self._var_precio.setFixedWidth(120)
         form.addWidget(self._var_precio)
