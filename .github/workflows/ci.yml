@@ -53,8 +53,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run unit tests
-        run: python run_tests.py
+        run: xvfb-run -a python run_tests.py
 
       - name: Run smoke test completo (headless)
-        run: python smoke_test_completo.py --headless
+        run: xvfb-run -a python smoke_test_completo.py --headless
         timeout-minutes: 2
