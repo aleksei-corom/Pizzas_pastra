@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from datetime import datetime
 
 from config import APP_NAME, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT
-from views.themes import THEME_PIZZERIA, build_stylesheet
+from views.themes.theme_helper import get_stylesheet
 from utils.printer import check_printer_status, get_default_printer
 from views.components import Sidebar, ModernMessageBox
 from views.dashboard_view import DashboardView
@@ -36,8 +36,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
         self.resize(1400, 850)
 
-        # Aplicar tema global
-        self.setStyleSheet(build_stylesheet(THEME_PIZZERIA))
+        self.setStyleSheet(get_stylesheet())
 
         self._build_ui()
         self._setup_clock()

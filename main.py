@@ -57,13 +57,22 @@ def main():
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
-    # Fuente global
-    font = QFont("Segoe UI", 13)
+    # Fuente global con fallback cross-platform
+    # En Windows: Segoe UI | En macOS: SF Pro Display | En Linux: Noto Sans
+    font_families = ["Segoe UI", "Inter", "SF Pro Display", "Noto Sans",
+                     "Noto Sans CJK SC", "DejaVu Sans", "Liberation Sans"]
+    font = QFont(font_families[0], 13)
     font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
     app.setFont(font)
 
     # Cargar config de DB a runtime
     _load_config_from_db(db)
+
+    # Aplicar el tema global a la aplicación
+    import config as app_config
+    from views.themes.theme_helper import set_active_theme, apply_theme_to_app
+    set_active_theme(getattr(app_config, "THEME_NAME", "pizzeria"))
+    apply_theme_to_app(app)
 
     # ─── Primera ejecución: Setup ───
     _auth_check = AuthService(db)
@@ -202,6 +211,7 @@ def _load_config_from_db(db: DatabaseManager):
         "currency_symbol": ("CURRENCY_SYMBOL", str),
         "currency_code": ("CURRENCY_CODE", str),
         "tax_rate": ("TAX_RATE", float),
+        "theme_name": ("THEME_NAME", str),
     }
     for db_key, (attr, cast) in mapping.items():
         val = configs.get(db_key)

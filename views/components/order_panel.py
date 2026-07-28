@@ -1,4 +1,4 @@
-"""Panel lateral de orden actual para el POS."""
+"""Panel lateral de orden actual para el POS — theme-aware toasts y estilos."""
 
 from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -17,23 +17,54 @@ from .icon_button import IconButton
 
 
 class ToastWidget(QLabel):
-    """Notificación toast temporal con auto-fadeout."""
+    """Notificación toast temporal con auto-fadeout — usa colores del tema activo."""
 
     TYPES = {
-        "success": {"bg": "#065f46", "border": "#34d399", "icon": "✅"},
-        "info": {"bg": "#1e3a5f", "border": "#3b82f6", "icon": "ℹ️"},
-        "warning": {"bg": "#5c4a1a", "border": "#f59e0b", "icon": "⚠️"},
+        "success": {"icon": "\u2705"},
+        "info":    {"icon": "\u2139\ufe0f"},
+        "warning": {"icon": "\u26a0\ufe0f"},
     }
 
     def __init__(self, parent, message, msg_type="success", duration=2200):
         super().__init__(parent)
-        cfg = self.TYPES.get(msg_type, self.TYPES["success"])
-        self.setText(f" {cfg['icon']}  {message}")
+        icon_cfg = self.TYPES.get(msg_type, self.TYPES["success"])
+        self.setText(f" {icon_cfg['icon']}  {message}")
+
+        # Obtener colores del tema activo
+        try:
+            from views.themes.theme_helper import th
+            bg_map = {
+                "success": th("bg_card"),
+                "info": th("bg_card"),
+                "warning": th("bg_card"),
+            }
+            border_map = {
+                "success": th("success"),
+                "info": th("primary"),
+                "warning": th("warning"),
+            }
+            fg_map = {
+                "success": th("success"),
+                "info": th("primary"),
+                "warning": th("warning"),
+            }
+            bg = bg_map.get(msg_type, th("bg_card"))
+            border = border_map.get(msg_type, th("border"))
+            fg_color = fg_map.get(msg_type, th("fg"))
+        except Exception:
+            # Fallback hardcodeado
+            bg_map = {"success": "#065f46", "info": "#1e3a5f", "warning": "#5c4a1a"}
+            border_map = {"success": "#34d399", "info": "#3b82f6", "warning": "#f59e0b"}
+            fg_map = {"success": "#34d399", "info": "#3b82f6", "warning": "#f59e0b"}
+            bg = bg_map.get(msg_type, "#065f46")
+            border = border_map.get(msg_type, "#34d399")
+            fg_color = fg_map.get(msg_type, "#34d399")
+
         self.setStyleSheet(f"""
             QLabel {{
-                background-color: {cfg['bg']};
-                color: #ffffff;
-                border: 1px solid {cfg['border']};
+                background-color: {bg};
+                color: {fg_color};
+                border: 1px solid {border};
                 border-radius: 10px;
                 padding: 10px 20px;
                 font-size: 13px;
@@ -101,18 +132,17 @@ class OrderItemWidget(QFrame):
         top.addWidget(self._subtotal_lbl)
         layout.addLayout(top)
 
-        # Si el nombre incluye detalles de variante (contiene paréntesis o •), mostrar precio unitario
-        if "(" in item.producto_nombre or "•" in item.producto_nombre:
+        # Si el nombre incluye detalles de variante, mostrar precio unitario
+        if "(" in item.producto_nombre or "\u2022" in item.producto_nombre:
             detail = QLabel(f"@ {app_config.CURRENCY_SYMBOL}{item.precio_unitario:.2f} c/u")
-            detail.setProperty("class", "caption")
-            detail.setStyleSheet("font-size: 10px;")
+            detail.setProperty("class", "small-muted")
             layout.addWidget(detail)
 
         # Fila 2: controles de cantidad
         bottom = QHBoxLayout()
         bottom.setSpacing(8)
 
-        btn_minus = IconButton("−", size=28)
+        btn_minus = IconButton("\u2212", size=28)
         btn_minus.clicked.connect(self._decrease)
         bottom.addWidget(btn_minus)
 
@@ -132,7 +162,7 @@ class OrderItemWidget(QFrame):
         price_each.setProperty("class", "caption")
         bottom.addWidget(price_each)
 
-        btn_del = IconButton("🗑", size=28)
+        btn_del = IconButton("\U0001f5d1", size=28)
         btn_del.setProperty("class", "danger-ghost")
         btn_del.clicked.connect(self.removed.emit)
         bottom.addWidget(btn_del)
@@ -193,15 +223,14 @@ class OrderPanel(QFrame):
 
         # Header
         header = QHBoxLayout()
-        title = QLabel("🛒  Orden Actual")
+        title = QLabel("\U0001f6d2  Orden Actual")
         title.setProperty("class", "section")
         header.addWidget(title)
         header.addStretch()
 
-        # Indicador atajos
-        shortcuts_lbl = QLabel("Ctrl+Enter Cobrar • Ctrl+N Nuevo")
-        shortcuts_lbl.setProperty("class", "caption")
-        shortcuts_lbl.setStyleSheet("font-size: 9px;")
+        # Indicador atajos — usa clase CSS en vez de inline
+        shortcuts_lbl = QLabel("Ctrl+Enter Cobrar \u2022 Ctrl+N Nuevo")
+        shortcuts_lbl.setProperty("class", "micro")
         shortcuts_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         header.addWidget(shortcuts_lbl)
 
@@ -218,14 +247,14 @@ class OrderPanel(QFrame):
         self.tipo_combo.currentIndexChanged.connect(self._on_tipo_changed)
         layout.addWidget(self.tipo_combo)
 
-        # ─── Campos de Delivery (visibles solo si tipo = delivery) ───
+        # --- Campos de Delivery (visibles solo si tipo = delivery) ---
         self._delivery_frame = QFrame()
         self._delivery_frame.setProperty("class", "card-light")
         dl_layout = QVBoxLayout(self._delivery_frame)
         dl_layout.setContentsMargins(10, 8, 10, 8)
         dl_layout.setSpacing(6)
 
-        dl_title = QLabel("🛵  Datos de Delivery")
+        dl_title = QLabel("\U0001f4cd  Datos de Delivery")
         dl_title.setProperty("class", "section")
         dl_layout.addWidget(dl_title)
 
@@ -289,7 +318,7 @@ class OrderPanel(QFrame):
         layout.addWidget(scroll, 1)
 
         # Empty state
-        self._empty_lbl = QLabel("Agrega productos\npara comenzar 🍕")
+        self._empty_lbl = QLabel("Agrega productos\npara comenzar \U0001f355")
         self._empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_lbl.setProperty("class", "subtitle")
         self._items_layout.insertWidget(0, self._empty_lbl)
@@ -322,7 +351,7 @@ class OrderPanel(QFrame):
         layout.addWidget(totals_frame)
 
         # Botón cobrar
-        self._btn_confirm = QPushButton(f"💰  Cobrar  {app_config.CURRENCY_SYMBOL}0.00")
+        self._btn_confirm = QPushButton(f"\U0001f4b0  Cobrar  {app_config.CURRENCY_SYMBOL}0.00")
         self._btn_confirm.setFixedHeight(48)
         self._btn_confirm.setProperty("class", "success")
         self._btn_confirm.setEnabled(False)
@@ -354,7 +383,6 @@ class OrderPanel(QFrame):
     def add_item(self, orden_item):
         """Agrega un item a la orden con feedback visual."""
         # Agregar como nuevo ítem solo si no hay otro con mismo producto Y mismo precio
-        # (esto permite tener variantes distintas del mismo producto en la misma orden)
         for existing in self.items:
             if (existing.producto_id == orden_item.producto_id and
                     existing.precio_unitario == orden_item.precio_unitario):
@@ -367,7 +395,7 @@ class OrderPanel(QFrame):
         self.items.append(orden_item)
         self._rebuild_items_ui(animate_new=True)
         self._update_totals()
-        self.show_toast(f"✓ {orden_item.producto_nombre} agregado", "success")
+        self.show_toast(f"\u2713 {orden_item.producto_nombre} agregado", "success")
 
     def _rebuild_items_ui(self, animate_new=False):
         for i in reversed(range(self._items_layout.count())):
@@ -383,18 +411,17 @@ class OrderPanel(QFrame):
             is_new = animate_new and i == len(self.items) - 1
             widget = OrderItemWidget(item, animate=is_new)
             widget.quantity_changed.connect(self._update_totals)
-            # Pasar referencia directa al objeto para evitar bugs con índices stale
             widget.removed.connect(lambda checked=False, it=item: self._remove_item_by_ref(it))
             self._items_layout.insertWidget(i + 1, widget)
 
     def _remove_item_by_ref(self, item):
-        """Elimina un ítem usando referencia directa al objeto (evita bugs con índices)."""
+        """Elimina un ítem usando referencia directa al objeto."""
         if item in self.items:
             removed_name = item.producto_nombre
             self.items.remove(item)
             self._rebuild_items_ui()
             self._update_totals()
-            self.show_toast(f"✕ {removed_name} eliminado", "warning")
+            self.show_toast(f"\u2715 {removed_name} eliminado", "warning")
 
     def _remove_item(self, index):
         """Elimina un ítem por índice (mantenido por compatibilidad)."""
@@ -403,7 +430,7 @@ class OrderPanel(QFrame):
             self.items.pop(index)
             self._rebuild_items_ui()
             self._update_totals()
-            self.show_toast(f"✕ {removed_name} eliminado", "warning")
+            self.show_toast(f"\u2715 {removed_name} eliminado", "warning")
 
     def _get_delivery_cost(self) -> float:
         """Retorna el costo de delivery si aplica."""
@@ -425,18 +452,18 @@ class OrderPanel(QFrame):
             envio_text = f" + {app_config.CURRENCY_SYMBOL}{delivery:.2f} envío"
         else:
             envio_text = ""
-        self._btn_confirm.setText(f"💰  Cobrar  {app_config.CURRENCY_SYMBOL}{total_con_envio:.2f}{envio_text}")
+        self._btn_confirm.setText(f"\U0001f4b0  Cobrar  {app_config.CURRENCY_SYMBOL}{total_con_envio:.2f}{envio_text}")
         self._btn_confirm.setEnabled(len(self.items) > 0)
 
     def _confirm_order(self):
-        # ─── Validar campos obligatorios de delivery ───
+        # --- Validar campos obligatorios de delivery ---
         if self.tipo_combo.currentData() == "delivery":
             if not self._dl_direccion.text().strip():
-                self.show_toast("⚠️  Ingresa la dirección de entrega", "warning")
+                self.show_toast("\u26a0\ufe0f  Ingresa la dirección de entrega", "warning")
                 self._dl_direccion.setFocus()
                 return
             if not self._dl_telefono.text().strip():
-                self.show_toast("⚠️  Ingresa el teléfono de contacto", "warning")
+                self.show_toast("\u26a0\ufe0f  Ingresa el teléfono de contacto", "warning")
                 self._dl_telefono.setFocus()
                 return
 

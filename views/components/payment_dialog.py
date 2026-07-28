@@ -132,18 +132,24 @@ class PaymentDialog(QDialog):
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # Aumentar duración del tooltip para que alcance a leer info detallada
-        self.setStyleSheet("""
-            QToolTip {
-                background-color: #1e1e2e;
-                color: #cdd6f4;
-                border: 1px solid #45475a;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 12px;
-                font-family: 'Segoe UI', sans-serif;
-            }
-        """)
+        # Tooltip usa colores del tema activo (consistente con el resto de la app)
+        try:
+            from views.themes.theme_helper import th
+            tooltip_style = f"""
+                QToolTip {{
+                    background-color: {th('bg_card')};
+                    color: {th('fg')};
+                    border: 1px solid {th('border')};
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    font-size: 12px;
+                    font-family: 'Segoe UI', sans-serif;
+                }}
+            """
+        except Exception:
+            tooltip_style = ""
+        if tooltip_style:
+            self.setStyleSheet(tooltip_style)
 
         # Datos de resultado
         self.imprimir_recibo = True
@@ -419,9 +425,12 @@ class PaymentDialog(QDialog):
         recibido = self._simple_monto.value()
         vuelto = max(0, recibido - self.total)
         self._val_vuelto_simple.setText(f"{app_config.CURRENCY_SYMBOL}{vuelto:.2f}")
-        self._val_vuelto_simple.setStyleSheet(
-            "color: #34d399;" if recibido >= self.total else "color: #f87171;"
-        )
+        try:
+            from views.themes.theme_helper import th
+            vuelto_color = th("success") if recibido >= self.total else th("danger")
+        except Exception:
+            vuelto_color = "#34d399" if recibido >= self.total else "#f87171"
+        self._val_vuelto_simple.setStyleSheet(f"color: {vuelto_color};")
         self.btn_confirm.setEnabled(recibido >= self.total)
 
         if vuelto > 0:
@@ -450,28 +459,50 @@ class PaymentDialog(QDialog):
         parent_w = w.width() if w else 400
         fill_w = max(0, int(pct_cubierto / 100 * parent_w))
         self._progress_fill.setFixedWidth(fill_w)
-        if total_asignado >= self.total:
-            color = "#34d399"
-        elif pct_cubierto > 50:
-            color = "#f59e0b"
-        else:
-            color = "#f87171"
+        try:
+            from views.themes.theme_helper import th
+            if total_asignado >= self.total:
+                color = th("success")
+            elif pct_cubierto > 50:
+                color = th("warning")
+            else:
+                color = th("danger")
+        except Exception:
+            if total_asignado >= self.total:
+                color = "#34d399"
+            elif pct_cubierto > 50:
+                color = "#f59e0b"
+            else:
+                color = "#f87171"
         self._progress_fill.setStyleSheet(
             f"background-color: {color}; border-radius: 6px;"
         )
 
         self._val_cubierto.setText(f"{app_config.CURRENCY_SYMBOL}{total_asignado:.2f}")
 
-        if restante > 0.005:
-            self._remaining_lbl.setText(f"❌  Faltan {app_config.CURRENCY_SYMBOL}{restante:.2f}")
-            self._remaining_lbl.setStyleSheet("color: #f87171;")
-            self.btn_confirm.setEnabled(False)
-        else:
-            excedente = abs(restante)
-            cambio_text = f"  (vuelto: {app_config.CURRENCY_SYMBOL}{excedente:.2f})" if excedente > 0.005 else ""
-            self._remaining_lbl.setText(f"✅  Cubierto{cambio_text}")
-            self._remaining_lbl.setStyleSheet("color: #34d399;")
-            self.btn_confirm.setEnabled(True)
+        try:
+            from views.themes.theme_helper import th
+            if restante > 0.005:
+                self._remaining_lbl.setText(f"❌  Faltan {app_config.CURRENCY_SYMBOL}{restante:.2f}")
+                self._remaining_lbl.setStyleSheet(f"color: {th('danger')};")
+                self.btn_confirm.setEnabled(False)
+            else:
+                excedente = abs(restante)
+                cambio_text = f"  (vuelto: {app_config.CURRENCY_SYMBOL}{excedente:.2f})" if excedente > 0.005 else ""
+                self._remaining_lbl.setText(f"✅  Cubierto{cambio_text}")
+                self._remaining_lbl.setStyleSheet(f"color: {th('success')};")
+                self.btn_confirm.setEnabled(True)
+        except Exception:
+            if restante > 0.005:
+                self._remaining_lbl.setText(f"❌  Faltan {app_config.CURRENCY_SYMBOL}{restante:.2f}")
+                self._remaining_lbl.setStyleSheet("color: #f87171;")
+                self.btn_confirm.setEnabled(False)
+            else:
+                excedente = abs(restante)
+                cambio_text = f"  (vuelto: {app_config.CURRENCY_SYMBOL}{excedente:.2f})" if excedente > 0.005 else ""
+                self._remaining_lbl.setText(f"✅  Cubierto{cambio_text}")
+                self._remaining_lbl.setStyleSheet("color: #34d399;")
+                self.btn_confirm.setEnabled(True)
 
     def _dividir_igualmente(self):
         """Distribuye el total entre todos los métodos con valor > 0."""

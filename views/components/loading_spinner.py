@@ -3,10 +3,23 @@ from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QTimer, QRectF
 from PySide6.QtGui import QPainter, QColor, QPen
 
+
 class LoadingSpinner(QWidget):
-    def __init__(self, size=40, color="#6366f1", parent=None):
+    """Spinner animado con soporte de color por parámetro o del tema activo.
+
+    Si no se pasa color explícito, usa el color primario del tema activo.
+    """
+
+    def __init__(self, size=40, color=None, parent=None):
         super().__init__(parent)
         self.setFixedSize(size, size)
+        # Color del tema activo si no se especifica
+        if color is None:
+            try:
+                from views.themes.theme_helper import th
+                color = th("primary")
+            except Exception:
+                color = "#e63946"
         self._color = QColor(color)
         self._angle = 0
         self._timer = QTimer(self)
@@ -20,13 +33,19 @@ class LoadingSpinner(QWidget):
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        p.translate(self.width()/2, self.height()/2)
+        p.translate(self.width() / 2, self.height() / 2)
         p.rotate(self._angle)
+        # Gradiente de grosor: más grueso al inicio, más fino al final
         pen = QPen(self._color, 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         p.setPen(pen)
-        r = self.width()/2 - 4
-        p.drawArc(QRectF(-r, -r, r*2, r*2), 0*16, 270*16)
+        r = self.width() / 2 - 4
+        p.drawArc(QRectF(-r, -r, r * 2, r * 2), 0 * 16, 270 * 16)
         p.end()
 
-    def stop(self): self._timer.stop(); self.hide()
-    def start(self): self._timer.start(16); self.show()
+    def stop(self):
+        self._timer.stop()
+        self.hide()
+
+    def start(self):
+        self._timer.start(16)
+        self.show()

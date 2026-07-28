@@ -9,6 +9,7 @@ BUSINESS_NAME = "FastBite POS"
 BUSINESS_SLOGAN = "Gestión de Restaurantes y Comidas Rápidas"
 BUSINESS_PHONE = "+58 412-000-0000"
 BUSINESS_ADDRESS = "Av. Principal, Local 1"
+THEME_NAME = "pizzeria"
 
 # ─── Moneda e Impuestos ───
 CURRENCY_SYMBOL = "$"

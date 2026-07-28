@@ -5,7 +5,7 @@ def build_stylesheet(theme: dict) -> str:
     QWidget {
         background-color: {{bg}};
         color: {{fg}};
-        font-family: 'Segoe UI', 'Inter', 'SF Pro Display', sans-serif;
+        font-family: 'Segoe UI', 'Inter', 'SF Pro Display', 'Noto Sans', sans-serif;
         font-size: 13px;
     }
     /* === BOTONES === */
@@ -39,7 +39,7 @@ def build_stylesheet(theme: dict) -> str:
 
     QPushButton[class="danger"] { background-color: {{danger}}; }
     QPushButton[class="danger"]:hover { background-color: {{danger_hover}}; }
-    
+
     QPushButton[class="danger-ghost"] {
         background-color: transparent;
         color: {{danger}};
@@ -53,17 +53,17 @@ def build_stylesheet(theme: dict) -> str:
         background: transparent; border: none; font-size: 14px; border-radius: 6px; padding: 0px; min-height: 0px;
     }
     QPushButton[class="icon-action"]:hover { background: {{bg_input}}; }
-    
+
     QPushButton[class="icon-warning"] {
         background: transparent; border: none; font-size: 16px; border-radius: 8px; padding: 0px; min-height: 0px; color: {{warning}};
     }
     QPushButton[class="icon-warning"]:hover { background: rgba(251,191,36,0.15); }
-    
+
     QPushButton[class="icon-danger"] {
         background: transparent; border: none; font-size: 16px; border-radius: 8px; padding: 0px; min-height: 0px; color: {{danger}};
     }
     QPushButton[class="icon-danger"]:hover { background: rgba(248,113,113,0.15); }
-    
+
     QPushButton[class="icon-success"] {
         background: transparent; border: none; font-size: 16px; border-radius: 8px; padding: 0px; min-height: 0px; color: {{success}};
     }
@@ -280,6 +280,36 @@ def build_stylesheet(theme: dict) -> str:
         font-size: 12px;
         color: {{fg_muted}};
     }
+    /* === NUEVAS CLASES: small, micro, small-accent, small-muted === */
+    QLabel[class="small"] {
+        font-size: 10px;
+        color: {{fg_muted}};
+        padding: 0;
+        background: transparent;
+        border: none;
+    }
+    QLabel[class="micro"] {
+        font-size: 9px;
+        color: {{fg_muted}};
+        padding: 0;
+        background: transparent;
+        border: none;
+    }
+    QLabel[class="small-accent"] {
+        font-size: 9px;
+        color: {{accent}};
+        padding: 0;
+        background: transparent;
+        border: none;
+    }
+    QLabel[class="small-muted"] {
+        font-size: 10px;
+        color: {{fg_muted}};
+        padding: 0;
+        background: transparent;
+        border: none;
+    }
+
     QLabel[class="badge-success"] {
         background-color: rgba(52,211,153,0.15);
         color: {{success}};
@@ -312,7 +342,7 @@ def build_stylesheet(theme: dict) -> str:
         font-size: 12px;
         font-weight: 600;
     }
-    
+
     /* === DIVIDER === */
     QFrame[class="divider"] {
         background-color: {{border}};
@@ -386,9 +416,9 @@ def build_stylesheet(theme: dict) -> str:
 
     /* === TOOLTIP === */
     QToolTip {
-        background-color: {{fg}};
-        color: {{bg}};
-        border: none;
+        background-color: {{bg_card}};
+        color: {{fg}};
+        border: 1px solid {{border}};
         border-radius: 6px;
         padding: 6px 12px;
         font-size: 12px;
@@ -429,7 +459,7 @@ def build_stylesheet(theme: dict) -> str:
         font-size: 12px;
         padding: 4px 12px;
     }
-    
+
     /* === POS VIEW === */
     QPushButton[class="category-button"] {
         background-color: {{bg_input}};
@@ -485,7 +515,7 @@ def build_stylesheet(theme: dict) -> str:
         border: none;
         background: transparent;
     }
-    
+
     /* === COMBO CARDS === */
     QFrame[class="combo-card"] {
         background-color: {{bg_card}};
@@ -520,7 +550,11 @@ def build_stylesheet(theme: dict) -> str:
         border: none;
         background: transparent;
     }
-    
+    QLabel#combo-savings-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+
     /* === ORDER PANEL === */
     QFrame#orderPanel {
         background-color: {{bg_card}};
@@ -554,9 +588,9 @@ def build_stylesheet(theme: dict) -> str:
         color: #ffffff;
     }
     QPushButton[class="success"]:hover {
-        background-color: #10b981; /* Un poco más oscuro que success */
+        background-color: #10b981;
     }
-    
+
     /* === REPORTS === */
     QPushButton[class="period-button"] {
         background-color: {{bg_input}};
@@ -578,7 +612,7 @@ def build_stylesheet(theme: dict) -> str:
         border-color: {{primary}};
         font-weight: 600;
     }
-    
+
     /* === PAYMENT DIALOG === */
     QLabel#payment-total-value {
         color: {{primary}};
@@ -587,7 +621,7 @@ def build_stylesheet(theme: dict) -> str:
         font-size: 18px;
         font-weight: bold;
     }
-    
+
     /* === PAYMENT DIALOG TABS === */
     QPushButton[class="payment-tab-btn"] {
         background-color: transparent;
@@ -609,7 +643,7 @@ def build_stylesheet(theme: dict) -> str:
         border-color: {{primary}};
         font-weight: 700;
     }
-    
+
     QFrame[class="payment-method-row"] {
         background-color: {{bg_input}};
         border: 1px solid {{border}};
@@ -618,7 +652,7 @@ def build_stylesheet(theme: dict) -> str:
     QFrame[class="payment-method-row"]:hover {
         border-color: {{primary}};
     }
-    
+
     QPushButton[class="payment-method-btn"] {
         background-color: {{bg_input}};
         color: {{fg_muted}};
@@ -638,7 +672,7 @@ def build_stylesheet(theme: dict) -> str:
         border-color: {{primary}};
         font-weight: 700;
     }
-    
+
     QFrame#progress-bar-bg {
         background-color: {{bg_input}};
         border-radius: 6px;
@@ -804,9 +838,7 @@ def build_stylesheet(theme: dict) -> str:
         border: none;
         background: transparent;
     }
-    
-    /* === TOAST NOTIFICATION === */
-    
+
     /* === SIDEBAR NAV BUTTON (checked) === */
     QPushButton[class="sidebar-nav-button"] {
         background-color: transparent;

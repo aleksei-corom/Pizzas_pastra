@@ -1,4 +1,4 @@
-"""Tarjeta visual de combo/promoción para el POS."""
+"""Tarjeta visual de combo/promoción para el POS — theme-aware."""
 
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
 from PySide6.QtCore import Qt, Signal
@@ -25,7 +25,7 @@ class ComboCard(QFrame):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Icono del combo
-        icon_lbl = QLabel(combo.icono or "🎉")
+        icon_lbl = QLabel(combo.icono or "\U0001f389")
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setObjectName("combo-card-icon")
         layout.addWidget(icon_lbl)
@@ -39,15 +39,14 @@ class ComboCard(QFrame):
         name_lbl.setMaximumHeight(34)
         layout.addWidget(name_lbl)
 
-        # Items count
+        # Items count — usa clase CSS en vez de inline style
         n_items = len(combo.items)
         items_lbl = QLabel(f"{n_items} producto{'s' if n_items != 1 else ''}")
         items_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        items_lbl.setProperty("class", "caption")
-        items_lbl.setStyleSheet("font-size: 10px;")
+        items_lbl.setProperty("class", "small-muted")
         layout.addWidget(items_lbl)
 
-        # Precio + badge de ahorro
+        # Precio + badge de ahorro — badge usa clase CSS
         price_row = QHBoxLayout()
         price_row.setSpacing(4)
         price_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -62,7 +61,7 @@ class ComboCard(QFrame):
             ahorro_lbl = QLabel(f"-{app_config.CURRENCY_SYMBOL}{combo.ahorro:.2f}")
             ahorro_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             ahorro_lbl.setProperty("class", "badge-success")
-            ahorro_lbl.setStyleSheet("font-size: 10px; padding: 2px 6px;")
+            ahorro_lbl.setObjectName("combo-savings-badge")
             price_row.addWidget(ahorro_lbl)
 
         layout.addLayout(price_row)

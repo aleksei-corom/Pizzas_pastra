@@ -70,6 +70,32 @@ class AjustesView(QWidget):
 
         layout.addWidget(info_card)
 
+        # Card: Apariencia
+        appearance_card = self._make_card()
+        appearance_layout = QVBoxLayout(appearance_card)
+        appearance_layout.setContentsMargins(24, 12, 24, 12)
+        appearance_layout.setSpacing(12)
+
+        appearance_title = QLabel("🎨  Apariencia")
+        appearance_title.setProperty("class", "title")
+        appearance_layout.addWidget(appearance_title)
+
+        row_app = QHBoxLayout()
+        row_app.setSpacing(16)
+
+        self._tema = QComboBox()
+        self._tema.setObjectName("formComboBox")
+        self._tema.setFixedHeight(36)
+        self._tema.setMinimumWidth(200)
+        from views.themes.theme_helper import AVAILABLE_THEMES
+        for theme_name in AVAILABLE_THEMES.keys():
+            self._tema.addItem(theme_name.title(), theme_name)
+        row_app.addLayout(create_form_row("Tema Visual", self._tema))
+        row_app.addStretch()
+        appearance_layout.addLayout(row_app)
+
+        layout.addWidget(appearance_card)
+
         # Card: Facturación
         billing_card = self._make_card()
         billing_layout = QVBoxLayout(billing_card)
@@ -330,6 +356,13 @@ class AjustesView(QWidget):
         self._direccion.setText(settings.get("business_address", app_config.BUSINESS_ADDRESS))
         self._moneda.setText(settings.get("currency_symbol", app_config.CURRENCY_SYMBOL))
 
+        # Cargar tema
+        theme_name = settings.get("theme_name", getattr(app_config, "THEME_NAME", "pizzeria"))
+        for i in range(self._tema.count()):
+            if self._tema.itemData(i) == theme_name:
+                self._tema.setCurrentIndex(i)
+                break
+
         # Cargar código de moneda
         currency_code = settings.get("currency_code", app_config.CURRENCY_CODE)
         for i in range(self._codigo_moneda.count()):
@@ -387,6 +420,7 @@ class AjustesView(QWidget):
         moneda = self._moneda.text().strip() or "$"
         codigo_moneda = self._codigo_moneda.currentData() or "USD"
         tax = self._tax.value() / 100.0
+        theme = self._tema.currentData() or "pizzeria"
 
         # Printer settings
         printer_name = self._printer_combo.currentData() or ""
@@ -404,6 +438,7 @@ class AjustesView(QWidget):
         self.cfg_svc.set_config("currency_symbol", moneda)
         self.cfg_svc.set_config("currency_code", codigo_moneda)
         self.cfg_svc.set_config("tax_rate", str(tax))
+        self.cfg_svc.set_config("theme_name", theme)
         self.cfg_svc.set_config("printer_name", printer_name)
         self.cfg_svc.set_config("printer_auto_cut", auto_cut)
         self.cfg_svc.set_config("printer_paper_width", pw)
@@ -419,12 +454,19 @@ class AjustesView(QWidget):
         app_config.CURRENCY_SYMBOL = moneda
         app_config.CURRENCY_CODE = codigo_moneda
         app_config.TAX_RATE = tax
+        app_config.THEME_NAME = theme
         app_config.PRINTER_NAME = printer_name
         app_config.PRINTER_AUTO_CUT = auto_cut == "1"
         app_config.PRINTER_PAPER_WIDTH = int(pw)
         app_config.PRINTER_CODEPAGE = cp
         app_config.PRINTER_PRINT_QR = print_qr == "1"
         app_config.PRINTER_SAVE_PDF = save_pdf == "1"
+
+        # Refrescar tema globalmente
+        from PySide6.QtWidgets import QApplication
+        from views.themes.theme_helper import set_active_theme, apply_theme_to_app
+        set_active_theme(theme)
+        apply_theme_to_app(QApplication.instance())
 
         ModernMessageBox.success(
             self,
@@ -443,6 +485,7 @@ class AjustesView(QWidget):
             "currency_symbol": app_config.CURRENCY_SYMBOL,
             "currency_code": app_config.CURRENCY_CODE,
             "tax_rate": str(app_config.TAX_RATE),
+            "theme_name": "pizzeria",
             "printer_name": app_config.PRINTER_NAME,
             "printer_auto_cut": "1" if app_config.PRINTER_AUTO_CUT else "0",
             "printer_paper_width": str(app_config.PRINTER_PAPER_WIDTH),
@@ -462,6 +505,7 @@ class AjustesView(QWidget):
         app_config.CURRENCY_SYMBOL = defaults["currency_symbol"]
         app_config.CURRENCY_CODE = defaults["currency_code"]
         app_config.TAX_RATE = float(defaults["tax_rate"])
+        app_config.THEME_NAME = defaults["theme_name"]
         app_config.PRINTER_NAME = defaults["printer_name"]
         app_config.PRINTER_AUTO_CUT = defaults["printer_auto_cut"] == "1"
         app_config.PRINTER_PAPER_WIDTH = int(defaults["printer_paper_width"])

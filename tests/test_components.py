@@ -1282,14 +1282,14 @@ class TestPaymentDialogAdvanced(unittest.TestCase):
         self.dlg = PaymentDialog(25.50)
         self.dlg._simple_monto.setValue(25.50)
         self.assertIn("0.00", self.dlg._val_vuelto_simple.text())
-        self.assertIn("#34d399", self.dlg._val_vuelto_simple.styleSheet())
+        self.assertIn("#06d6a0", self.dlg._val_vuelto_simple.styleSheet())
 
     def test_recalcular_simple_con_monto_insuficiente_color_rojo(self):
         """_recalcular_simple con monto insuficiente debe mostrar color rojo."""
         from views.components.payment_dialog import PaymentDialog
         self.dlg = PaymentDialog(25.50)
         self.dlg._simple_monto.setValue(10.00)
-        self.assertIn("f87171", self.dlg._val_vuelto_simple.styleSheet())
+        self.assertIn("#ef476f", self.dlg._val_vuelto_simple.styleSheet())
 
     def test_recalcular_simple_con_vuelto_muestra_desglose(self):
         """_recalcular_simple con vuelto > 0 debe mostrar desglose."""
@@ -1306,7 +1306,7 @@ class TestPaymentDialogAdvanced(unittest.TestCase):
         self.dlg._method_rows["efectivo"].value = 35.00
         self.assertIn("Cubierto", self.dlg._remaining_lbl.text())
         self.assertIn("5.00", self.dlg._remaining_lbl.text())
-        self.assertIn("#34d399", self.dlg._remaining_lbl.styleSheet())
+        self.assertIn("#06d6a0", self.dlg._remaining_lbl.styleSheet())
 
     def test_combo_recalculo_progress_bar_overflow(self):
         """Combo con más del 100% debe mostrar barra llena."""
@@ -1315,7 +1315,7 @@ class TestPaymentDialogAdvanced(unittest.TestCase):
         self.dlg._switch_tab(1)
         self.dlg._method_rows["efectivo"].value = 50.00  # 166%
         # La barra debe tener estilo verde
-        self.assertIn("#34d399", self.dlg._progress_fill.styleSheet())
+        self.assertIn("#06d6a0", self.dlg._progress_fill.styleSheet())
 
     def test_combo_balance_pct_labels(self):
         """Labels de balance en combo deben mostrar porcentaje."""

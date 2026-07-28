@@ -1,4 +1,4 @@
-"""Tarjeta visual de producto para la vista POS."""
+"""Tarjeta visual de producto para la vista POS — theme-aware."""
 
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel
 from PySide6.QtCore import Qt, Signal
@@ -16,14 +16,14 @@ class ProductCard(QFrame):
         self.producto = producto
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedSize(160, 140)
-        self.setProperty("class", "product-card") # Nueva propiedad de clase
+        self.setProperty("class", "product-card")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = QLabel(producto.icono or "🍽️")
+        icon_lbl = QLabel(producto.icono or "\U0001f37d\ufe0f")
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setObjectName("product-card-icon")
         layout.addWidget(icon_lbl)
@@ -42,12 +42,11 @@ class ProductCard(QFrame):
         price_lbl.setObjectName("product-card-price")
         layout.addWidget(price_lbl)
 
-        # Badge de variantes si aplica
+        # Badge de variantes si aplica — usa clase CSS en vez de inline style
         if producto.tiene_variantes:
-            badge = QLabel("📏 +ingredientes")
+            badge = QLabel("\U0001f4cf +ingredientes")
             badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            badge.setProperty("class", "caption")
-            badge.setStyleSheet("font-size: 9px; color: #f77f00; padding: 0;")
+            badge.setProperty("class", "small-accent")
             layout.addWidget(badge)
 
     def mousePressEvent(self, event):

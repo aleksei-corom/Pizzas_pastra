@@ -1,4 +1,4 @@
-"""Widgets de gráficos reutilizables para el Dashboard usando QtCharts."""
+"""Widgets de gráficos reutilizables para el Dashboard usando QtCharts — theme-aware."""
 
 from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QSizePolicy
 from PySide6.QtCore import Qt, QMargins
@@ -14,19 +14,42 @@ from PySide6.QtCharts import (
 import config as app_config
 
 
-# ─── Paleta de colores para gráficos ───
-CHART_COLORS = [
-    "#e63946",  # Rojo pizzeria
-    "#f77f00",  # Naranja acento
-    "#06d6a0",  # Verde éxito
-    "#118ab2",  # Azul
-    "#ffd166",  # Amarillo
-    "#ef476f",  # Rosa
-    "#8338ec",  # Púrpura
-    "#ff6b6b",  # Rojo claro
-    "#4ecdc4",  # Turquesa
-    "#45b7d1",  # Azul claro
-]
+def _get_theme_colors():
+    """Retorna colores del tema activo para gráficos."""
+    try:
+        from views.themes.theme_helper import th, get_chart_colors, get_chart_bg
+        return {
+            'primary': th("primary"),
+            'primary_hover': th("primary_hover"),
+            'success': th("success"),
+            'warning': th("warning"),
+            'fg_muted': th("fg_muted"),
+            'border': th("border"),
+            'fg': th("fg"),
+            'bg_card': th("bg_card"),
+            'palette': get_chart_colors(),
+        }
+    except Exception:
+        return {
+            'primary': '#e63946', 'primary_hover': '#c1121f',
+            'success': '#06d6a0', 'warning': '#ffd166',
+            'fg_muted': '#94a3b8', 'border': '#334155',
+            'fg': '#f1f5f9', 'bg_card': '#1e293b',
+            'palette': ["#e63946", "#f77f00", "#06d6a0", "#118ab2", "#ffd166",
+                        "#ef476f", "#8338ec", "#ff6b6b", "#4ecdc4", "#45b7d1"],
+        }
+
+
+_TC = _get_theme_colors()
+
+
+def _get_font_family():
+    """Retorna la familia de fuentes del tema o fallback."""
+    try:
+        from views.themes.theme_helper import th
+        return "Segoe UI"
+    except Exception:
+        return "Segoe UI"
 
 
 def _create_base_chart(title_text=""):
@@ -34,24 +57,24 @@ def _create_base_chart(title_text=""):
     chart = QChart()
     if title_text:
         chart.setTitle(title_text)
-        chart.setTitleFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        chart.setTitleFont(QFont(_get_font_family(), 13, QFont.Weight.Bold))
     chart.setTheme(QChart.ChartTheme.ChartThemeDark)
-    chart.setBackgroundBrush(QColor("#1e293b"))
+    chart.setBackgroundBrush(QColor(_TC['bg_card']))
     chart.setBackgroundRoundness(12)
     chart.setMargins(QMargins(0, 0, 0, 0))
     chart.layout().setContentsMargins(0, 0, 0, 0)
     chart.legend().setVisible(True)
-    chart.legend().setFont(QFont("Segoe UI", 10))
-    chart.legend().setLabelColor(QColor("#94a3b8"))
+    chart.legend().setFont(QFont(_get_font_family(), 10))
+    chart.legend().setLabelColor(QColor(_TC['fg_muted']))
     chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
     return chart
 
 
 def _create_chart_view(chart):
-    """Crea un QChartView con anti-aliasing y fondo oscuro."""
+    """Crea un QChartView con anti-aliasing y fondo del tema."""
     view = QChartView(chart)
     view.setRenderHint(QPainter.RenderHint.Antialiasing)
-    view.setBackgroundBrush(QColor("#1e293b"))
+    view.setBackgroundBrush(QColor(_TC['bg_card']))
     view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
     return view
 
@@ -69,7 +92,7 @@ class SalesBarChart(QFrame):
         header = QVBoxLayout()
         header.setSpacing(4)
 
-        title_lbl = QLabel("📊  Ventas por Día")
+        title_lbl = QLabel("\U0001f4ca  Ventas por Día")
         title_lbl.setProperty("class", "card-title")
         header.addWidget(title_lbl)
 
@@ -100,8 +123,10 @@ class SalesBarChart(QFrame):
         for v in values:
             bar_set.append(v)
 
-        bar_set.setColor(QColor("#e63946"))
-        bar_set.setBorderColor(QColor("#c1121f"))
+        # Colores del tema activo
+        tc = _get_theme_colors()
+        bar_set.setColor(QColor(tc['primary']))
+        bar_set.setBorderColor(QColor(tc['primary_hover']))
 
         series = QBarSeries()
         series.append(bar_set)
@@ -110,9 +135,9 @@ class SalesBarChart(QFrame):
 
         axis_x = QBarCategoryAxis()
         axis_x.append(labels)
-        axis_x.setLabelsColor(QColor("#94a3b8"))
-        axis_x.setLabelsFont(QFont("Segoe UI", 9))
-        axis_x.setGridLineColor(QColor("#334155"))
+        axis_x.setLabelsColor(QColor(tc['fg_muted']))
+        axis_x.setLabelsFont(QFont(_get_font_family(), 9))
+        axis_x.setGridLineColor(QColor(tc['border']))
         axis_x.setLineVisible(False)
         self._chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
@@ -120,9 +145,9 @@ class SalesBarChart(QFrame):
         max_val = max(values) if values else 1
         axis_y = QValueAxis()
         axis_y.setRange(0, max_val * 1.2)
-        axis_y.setLabelsColor(QColor("#94a3b8"))
-        axis_y.setLabelsFont(QFont("Segoe UI", 9))
-        axis_y.setGridLineColor(QColor("#334155"))
+        axis_y.setLabelsColor(QColor(tc['fg_muted']))
+        axis_y.setLabelsFont(QFont(_get_font_family(), 9))
+        axis_y.setGridLineColor(QColor(tc['border']))
         axis_y.setLineVisible(False)
         axis_y.setLabelFormat(f"{app_config.CURRENCY_SYMBOL}%.0f")
         self._chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
@@ -139,13 +164,13 @@ class OrderDonutChart(QFrame):
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(8)
 
-        title_lbl = QLabel("🍽️  Distribución de Órdenes")
+        title_lbl = QLabel("\U0001f37d\ufe0f  Distribución de Órdenes")
         title_lbl.setProperty("class", "card-title")
         layout.addWidget(title_lbl)
 
         self._chart = _create_base_chart()
         self._chart.legend().setAlignment(Qt.AlignmentFlag.AlignRight)
-        self._chart.legend().setFont(QFont("Segoe UI", 10))
+        self._chart.legend().setFont(QFont(_get_font_family(), 10))
         self._chart.setMargins(QMargins(5, 5, 5, 5))
 
         self._series = QPieSeries()
@@ -171,15 +196,18 @@ class OrderDonutChart(QFrame):
         total = sum(values)
         self._total_lbl.setText(f"Total: {total} órdenes")
 
+        tc = _get_theme_colors()
+        palette = tc['palette']
+
         for i, (label, value) in enumerate(zip(labels, values)):
             if value <= 0:
                 continue
             pct = (value / total * 100) if total > 0 else 0
             slice_ = self._series.append(f"{label}  ({pct:.0f}%)", value)
-            slice_.setColor(QColor(CHART_COLORS[i % len(CHART_COLORS)]))
+            slice_.setColor(QColor(palette[i % len(palette)]))
             slice_.setLabelVisible(True)
-            slice_.setLabelColor(QColor("#f1f5f9"))
-            slice_.setLabelFont(QFont("Segoe UI", 9))
+            slice_.setLabelColor(QColor(tc['fg']))
+            slice_.setLabelFont(QFont(_get_font_family(), 9))
             slice_.setExplodeDistanceFactor(0.05)
 
 
@@ -207,6 +235,8 @@ class MiniTrendChart(QFrame):
         header.addWidget(self._change_lbl)
         layout.addLayout(header)
 
+        tc = _get_theme_colors()
+
         self._chart = QChart()
         self._chart.setTheme(QChart.ChartTheme.ChartThemeDark)
         self._chart.setBackgroundBrush(QColor("transparent"))
@@ -215,7 +245,7 @@ class MiniTrendChart(QFrame):
         self._chart.legend().setVisible(False)
 
         self._series = QLineSeries()
-        self._series.setPen(QPen(QColor("#06d6a0"), 2))
+        self._series.setPen(QPen(QColor(tc['success']), 2))
         self._chart.addSeries(self._series)
 
         self._view = _create_chart_view(self._chart)
@@ -224,6 +254,7 @@ class MiniTrendChart(QFrame):
 
     def set_data(self, values, label="", value_text="", change_text=""):
         """Actualiza los datos del minigráfico de tendencia."""
+        tc = _get_theme_colors()
         if label:
             self._label_lbl.setText(label)
         if value_text:
@@ -232,7 +263,7 @@ class MiniTrendChart(QFrame):
             self._change_lbl.setText(change_text)
             is_positive = "+" in change_text
             self._change_lbl.setStyleSheet(
-                f"color: #34d399;" if is_positive else "color: #f87171;"
+                f"color: {tc['success']};" if is_positive else f"color: {tc['danger'] if 'danger' in tc else '#f87171'};"
             )
 
         self._series.clear()

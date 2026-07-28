@@ -330,11 +330,11 @@ class KitchenDisplayView(QWidget):
         header.addStretch()
 
         # Stats rápidos
-        self._stat_pendientes, self._stat_val_pendientes = self._make_stat_label("⏳ Pendientes", "0", "#fbbf24")
+        self._stat_pendientes, self._stat_val_pendientes = self._make_stat_label("⏳ Pendientes", "0", "warning")
         header.addWidget(self._stat_pendientes)
-        self._stat_preparando, self._stat_val_preparando = self._make_stat_label("👨‍🍳 Preparando", "0", "#6366f1")
+        self._stat_preparando, self._stat_val_preparando = self._make_stat_label("👨‍🍳 Preparando", "0", "primary")
         header.addWidget(self._stat_preparando)
-        self._stat_listos, self._stat_val_listos = self._make_stat_label("✅ Listos", "0", "#34d399")
+        self._stat_listos, self._stat_val_listos = self._make_stat_label("✅ Listos", "0", "success")
         header.addWidget(self._stat_listos)
         self._stat_delivery, self._stat_val_delivery = self._make_stat_label("🛵 En Camino", "0", "#fb923c")
         header.addWidget(self._stat_delivery)
@@ -402,8 +402,13 @@ class KitchenDisplayView(QWidget):
 
         layout.addLayout(bottom_bar)
 
-    def _make_stat_label(self, title, value, color):
-        """Crea una etiqueta de estadística rápida."""
+    def _make_stat_label(self, title, value, color_key):
+        """Crea una etiqueta de estadística rápida — usa colores del tema activo."""
+        try:
+            from views.themes.theme_helper import th
+            color = th(color_key)
+        except Exception:
+            color = color_key  # Fallback al color original si era hardcoded
         w = QFrame()
         w.setProperty("class", "card-light")
         l = QHBoxLayout(w)
@@ -463,13 +468,32 @@ class KitchenDisplayView(QWidget):
         self._col_delivery.refresh_timers()
 
     def _notify_new_orders(self):
-        """Notificación sonora + visual."""
+        """Notificación sonora + flash visual en la columna de pendientes."""
         # Sonido del sistema
         QApplication.beep()
         QApplication.beep()
 
-        # Flash visual en el header (cambiar temporalmente el fondo)
-        # Se podría hacer con una animación, pero por ahora un parpadeo simple
+        # Flash visual en la columna de pendientes
+        try:
+            from PySide6.QtCore import QPropertyAnimation, QEasingCurve
+            from PySide6.QtGui import QPalette, QColor
+            orig_palette = self._col_pending.palette()
+            flash_color = QColor("#34d399")
+            # Cambiar borde brevemente para indicar nueva orden
+            self._col_pending.setStyleSheet(
+                self._col_pending.styleSheet() +
+                "QFrame#kds-column { border: 2px solid #34d399; }"
+            )
+            # Restaurar después de 1.5s
+            QTimer.singleShot(1500, lambda: self._col_pending.setStyleSheet(
+                self._col_pending.styleSheet().replace(
+                    "QFrame#kds-column { border: 2px solid #34d399; }", ""
+                ).replace(
+                    "QFrame#kds-column { border: 2px solid #34d399; }", ""
+                )
+            ))
+        except Exception:
+            pass  # Flash visual es decorativo, no crítico
 
     def cargar_datos(self):
         """Carga todas las órdenes activas de cocina."""
