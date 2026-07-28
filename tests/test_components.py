@@ -28,6 +28,22 @@ def get_app() -> QApplication:
     return _app
 
 
+# ─── Helper: stop all Qt timers in a widget tree ───
+def _stop_all_timers(widget):
+    """Recursively stops all QTimer instances in a widget and its children."""
+    from PySide6.QtCore import QTimer
+    for child in widget.findChildren(QTimer):
+        child.stop()
+    for attr_name in ('_timer', '_spinner_timer', '_animation_timer', '_debounce_timer'):
+        timer = getattr(widget, attr_name, None)
+        if timer and hasattr(timer, 'stop'):
+            try:
+                timer.stop()
+            except Exception:
+                pass
+
+
+
 def _init_db():
     """Inicializa DB en memoria y retorna servicios."""
     app_config.DB_PATH = ":memory:"
@@ -244,6 +260,8 @@ class TestLoadingSpinner(unittest.TestCase):
         spinner = LoadingSpinner()
         self.assertTrue(spinner._timer.isActive())
         self.assertEqual(spinner._timer.interval(), 16)
+        spinner._timer.stop()
+        spinner.deleteLater()
         spinner.deleteLater()
 
     def test_stop_detiene_el_timer(self):

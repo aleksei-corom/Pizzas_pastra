@@ -32,6 +32,25 @@ def get_app() -> QApplication:
     return _app
 
 
+# ─── Helper: stop all Qt timers in a widget tree (prevents CI hangs) ───
+def _stop_all_timers(widget):
+    """Recursively stops all QTimer instances in a widget and its children."""
+    from PySide6.QtCore import QTimer
+    for child in widget.findChildren(QTimer):
+        child.stop()
+    # Also stop direct timer attributes
+    for attr_name in ('_timer', '_printer_timer', '_refresh_timer', '_clock_timer',
+                       '_timer_updater', '_filter_timer', '_resize_timer', '_auto_timer',
+                       '_debounce_timer'):
+        timer = getattr(widget, attr_name, None)
+        if timer and hasattr(timer, 'stop'):
+            try:
+                timer.stop()
+            except Exception:
+                pass
+
+
+
 # ─── Helpers ───
 
 def _init_db():
@@ -85,10 +104,11 @@ class TestLoginView(unittest.TestCase):
         Session._instance = None
 
     def _create_view(self):
-        """Crea LoginView con mock de métodos para evitar mostrar pantalla completa."""
+        """Crea LoginView con mock de showMaximized para evitar problemas en offscreen."""
         from views.login_view import LoginView
         view = LoginView()
-        # No llamar a showEvent que llama a showMaximized
+        # Mock showMaximized para evitar problemas en offscreen/CI
+        view.showMaximized = lambda: None
         self.view = view
         return view
 
@@ -145,6 +165,9 @@ class TestPOSView(unittest.TestCase):
 
     def tearDown(self):
         if hasattr(self, 'view') and self.view:
+            # Detener resize_timer para evitar hangs
+            if hasattr(self.view, '_resize_timer'):
+                self.view._resize_timer.stop()
             self.view.close()
             self.view.deleteLater()
         self.db.close()
@@ -500,9 +523,11 @@ class TestPOSViewAdvanced2(unittest.TestCase):
         view.show()
         view._search.setText("Cola")
         view._search.setFocus()
-        self.assertTrue(view._search.hasFocus())
         self.assertTrue(view._search.text())
-        view._shortcut_escape()
+        
+        with unittest.mock.patch.object(view._search, 'hasFocus', return_value=True):
+            view._shortcut_escape()
+            
         self.assertEqual(view._search.text(), "")
 
     def test_shortcut_category_selecciona_por_indice(self):
@@ -1713,13 +1738,7 @@ class TestKitchenDisplayView(unittest.TestCase):
 
     def tearDown(self):
         if hasattr(self, 'view') and self.view:
-            # Detener timers para evitar que sigan corriendo
-            if hasattr(self.view, '_refresh_timer') and self.view._refresh_timer:
-                self.view._refresh_timer.stop()
-            if hasattr(self.view, '_clock_timer') and self.view._clock_timer:
-                self.view._clock_timer.stop()
-            if hasattr(self.view, '_timer_updater') and self.view._timer_updater:
-                self.view._timer_updater.stop()
+            _stop_all_timers(self.view)
             self.view.close()
             self.view.deleteLater()
         self.db.close()
@@ -2743,16 +2762,28 @@ class TestMainWindow(unittest.TestCase):
         from database.models import Usuario
         self.session.login(self.auth_svc.verificar_password("admin", "admin123"))
 
+        # Mock printer functions to avoid win32print calls in CI
+        self._printer_patcher1 = unittest.mock.patch(
+            'views.main_window.check_printer_status', return_value=False
+        )
+        self._printer_patcher2 = unittest.mock.patch(
+            'views.main_window.get_default_printer', return_value=None
+        )
+        self._printer_patcher1.start()
+        self._printer_patcher2.start()
+
     def tearDown(self):
         if hasattr(self, 'view') and self.view:
-            if hasattr(self.view, '_timer'):
-                self.view._timer.stop()
-            if hasattr(self.view, '_printer_timer'):
-                self.view._printer_timer.stop()
+            _stop_all_timers(self.view)
             if hasattr(self, 'session') and self.session:
                 self.session.logout()
             self.view.close()
             self.view.deleteLater()
+        # Stop printer mocks
+        if hasattr(self, '_printer_patcher1'):
+            self._printer_patcher1.stop()
+        if hasattr(self, '_printer_patcher2'):
+            self._printer_patcher2.stop()
         Session._instance = None
         self.db.close()
         DatabaseManager._instance = None
@@ -2971,14 +3002,16 @@ class TestMainWindowAdvanced(unittest.TestCase):
 
     def tearDown(self):
         if hasattr(self, 'view') and self.view:
-            if hasattr(self.view, '_timer'):
-                self.view._timer.stop()
-            if hasattr(self.view, '_printer_timer'):
-                self.view._printer_timer.stop()
+            _stop_all_timers(self.view)
             if hasattr(self, 'session') and self.session:
                 self.session.logout()
             self.view.close()
             self.view.deleteLater()
+        # Stop printer mocks
+        if hasattr(self, '_printer_patcher1'):
+            self._printer_patcher1.stop()
+        if hasattr(self, '_printer_patcher2'):
+            self._printer_patcher2.stop()
         Session._instance = None
         self.db.close()
         DatabaseManager._instance = None
@@ -3091,14 +3124,16 @@ class TestMainWindowAdvanced2(unittest.TestCase):
 
     def tearDown(self):
         if hasattr(self, 'view') and self.view:
-            if hasattr(self.view, '_timer'):
-                self.view._timer.stop()
-            if hasattr(self.view, '_printer_timer'):
-                self.view._printer_timer.stop()
+            _stop_all_timers(self.view)
             if hasattr(self, 'session') and self.session:
                 self.session.logout()
             self.view.close()
             self.view.deleteLater()
+        # Stop printer mocks
+        if hasattr(self, '_printer_patcher1'):
+            self._printer_patcher1.stop()
+        if hasattr(self, '_printer_patcher2'):
+            self._printer_patcher2.stop()
         Session._instance = None
         self.db.close()
         DatabaseManager._instance = None

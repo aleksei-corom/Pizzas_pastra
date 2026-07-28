@@ -1,11 +1,14 @@
-"""Datos iniciales para la base de datos de Pizzas Pastra."""
+"""Datos iniciales para la base de datos de FastBite POS."""
 
+import logging
 import config
 from database.models import Categoria, Producto, ProductoVariante, ProductoIngrediente, Combo, ComboItem
 from database.producto_service import ProductoService
 from database.orden_service import OrdenService
 from database.auth_service import AuthService
 from database.config_service import ConfigService
+
+logger = logging.getLogger(__name__)
 
 
 def seed_database():
@@ -102,7 +105,7 @@ def seed_database():
     _seed_config_defaults()
     _seed_admin_user(auth_svc)
 
-    print(f"[OK] Base de datos inicializada con {len(categorias)} categorias, {len(productos)} productos y configuración.")
+    logger.info("Base de datos inicializada con %d categorias, %d productos y configuracion.", len(categorias), len(productos))
 
 
 def _seed_config_defaults():
@@ -152,7 +155,7 @@ def _seed_variants(prod_svc: ProductoService, cat_ids: dict):
                 orden=orden,
             ))
 
-    print(f"[OK] Variantes creadas para {len(productos_pizza)} productos de pizza")
+    logger.info("Variantes creadas para %d productos de pizza", len(productos_pizza))
 
 
 def _seed_ingredients(prod_svc: ProductoService):
@@ -177,7 +180,7 @@ def _seed_ingredients(prod_svc: ProductoService):
     for ing in ingredientes:
         prod_svc.crear_ingrediente(ing)
 
-    print(f"[OK] {len(ingredientes)} ingredientes adicionales creados")
+    logger.info("%d ingredientes adicionales creados", len(ingredientes))
 
 
 def _seed_combos(prod_svc: ProductoService, combo_svc: OrdenService, cat_ids: dict):
@@ -261,11 +264,17 @@ def _seed_combos(prod_svc: ProductoService, combo_svc: OrdenService, cat_ids: di
         combo_svc.crear_combo(combo)
         created += 1
 
-    print(f"[OK] {created} combos/promociones creados")
+    logger.info("%d combos/promociones creados", created)
 
 
 def _seed_admin_user(auth_svc: AuthService):
-    """Crea usuario admin por defecto si no existen usuarios."""
+    """Crea usuario admin por defecto si no existen usuarios.
+    
+    SEGURIDAD: La contrasena por defecto es 'admin123'. En produccion,
+    el instalador Inno Setup genera una contrasena aleatoria via setup_init.ini.
+    Si se crea el admin por esta via, se DEBE cambiar la contrasena en el
+    primer inicio de sesion.
+    """
     if not auth_svc.hay_usuarios():
         auth_svc.crear_usuario(
             username="admin",
@@ -273,4 +282,4 @@ def _seed_admin_user(auth_svc: AuthService):
             nombre_completo="Administrador",
             rol="admin"
         )
-        print("[OK] Usuario admin creado (admin / admin123)")
+        logger.warning("Usuario admin creado con credenciales por defecto (admin / admin123). CAMBIA ESTA CONTRASENA INMEDIATAMENTE por seguridad.")

@@ -26,12 +26,20 @@ class DatabaseManager:
         if self._conn is None:
             with self._conn_lock:
                 if self._conn is None:
-                    self._conn = sqlite3.connect(
-                        app_config.DB_PATH, check_same_thread=False
-                    )
-                    self._conn.row_factory = sqlite3.Row
-                    self._conn.execute("PRAGMA journal_mode=WAL")
-                    self._conn.execute("PRAGMA foreign_keys=ON")
+                    try:
+                        self._conn = sqlite3.connect(
+                            app_config.DB_PATH, check_same_thread=False
+                        )
+                        self._conn.row_factory = sqlite3.Row
+                        self._conn.execute("PRAGMA journal_mode=WAL")
+                        self._conn.execute("PRAGMA foreign_keys=ON")
+                    except sqlite3.Error as e:
+                        import logging
+                        logging.getLogger(__name__).critical(
+                            "Error critico: no se pudo conectar a la DB en %s: %s",
+                            app_config.DB_PATH, e
+                        )
+                        raise
         return self._conn
 
     def init_db(self):
@@ -203,6 +211,11 @@ class DatabaseManager:
         return row["cnt"] == 0
 
     def close(self):
-        if self._conn:
-            self._conn.close()
-            self._conn = None
+        with self._conn_lock:
+            if self._conn:
+                try:
+                    self._conn.close()
+                except sqlite3.Error:
+                    pass
+                finally:
+                    self._conn = None

@@ -70,6 +70,11 @@ class ProductoService:
 
     def get_productos(self, categoria_id: Optional[int] = None,
                       solo_disponibles: bool = False) -> tuple[Producto, ...]:
+        # FIX: Verificar cache ANTES de construir la query (evita trabajo innecesario)
+        key = ("productos", categoria_id, solo_disponibles)
+        if key in self._cache:
+            return self._cache[key]
+
         q = """
             SELECT p.*, c.nombre as categoria_nombre
             FROM productos p
@@ -85,9 +90,6 @@ class ProductoService:
         if conditions:
             q += " WHERE " + " AND ".join(conditions)
         q += " ORDER BY c.orden, p.nombre"
-        key = ("productos", categoria_id, solo_disponibles)
-        if key in self._cache:
-            return self._cache[key]
         rows = self._db.conn.execute(q, params).fetchall()
         result = []
         for r in rows:
@@ -178,31 +180,43 @@ class ProductoService:
 
     def crear_variante(self, v: ProductoVariante) -> int:
         self._clear_cache()
-        cur = self._db.conn.execute(
-            "INSERT INTO producto_variantes (producto_id, nombre, precio_adicional, orden) "
-            "VALUES (?, ?, ?, ?)",
-            (v.producto_id, v.nombre, v.precio_adicional, v.orden)
-        )
-        self._db.conn.commit()
-        self._db.conn.execute("UPDATE productos SET tiene_variantes=1 WHERE id=?", (v.producto_id,))
-        self._db.conn.commit()
+        try:
+            self._db.conn.execute("BEGIN IMMEDIATE")
+            cur = self._db.conn.execute(
+                "INSERT INTO producto_variantes (producto_id, nombre, precio_adicional, orden) "
+                "VALUES (?, ?, ?, ?)",
+                (v.producto_id, v.nombre, v.precio_adicional, v.orden)
+            )
+            self._db.conn.execute(
+                "UPDATE productos SET tiene_variantes=1 WHERE id=?", (v.producto_id,)
+            )
+            self._db.conn.commit()
+        except Exception:
+            self._db.conn.rollback()
+            raise
         return cur.lastrowid
 
     def eliminar_variante(self, variante_id: int):
         self._clear_cache()
-        v = self._db.conn.execute(
-            "SELECT producto_id FROM producto_variantes WHERE id=?", (variante_id,)
-        ).fetchone()
-        prod_id = v["producto_id"] if v else None
-        self._db.conn.execute("DELETE FROM producto_variantes WHERE id=?", (variante_id,))
-        self._db.conn.commit()
-        if prod_id:
-            restantes = self._db.conn.execute(
-                "SELECT COUNT(*) as cnt FROM producto_variantes WHERE producto_id=?", (prod_id,)
-            ).fetchone()["cnt"]
-            if restantes == 0:
-                self._db.conn.execute("UPDATE productos SET tiene_variantes=0 WHERE id=?", (prod_id,))
-                self._db.conn.commit()
+        try:
+            self._db.conn.execute("BEGIN IMMEDIATE")
+            v = self._db.conn.execute(
+                "SELECT producto_id FROM producto_variantes WHERE id=?", (variante_id,)
+            ).fetchone()
+            prod_id = v["producto_id"] if v else None
+            self._db.conn.execute("DELETE FROM producto_variantes WHERE id=?", (variante_id,))
+            if prod_id:
+                restantes = self._db.conn.execute(
+                    "SELECT COUNT(*) as cnt FROM producto_variantes WHERE producto_id=?", (prod_id,)
+                ).fetchone()["cnt"]
+                if restantes == 0:
+                    self._db.conn.execute(
+                        "UPDATE productos SET tiene_variantes=0 WHERE id=?", (prod_id,)
+                    )
+            self._db.conn.commit()
+        except Exception:
+            self._db.conn.rollback()
+            raise
 
     # ─── INGREDIENTES ───
 

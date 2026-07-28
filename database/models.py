@@ -1,4 +1,4 @@
-"""Modelos de datos para Pizzas Pastra."""
+"""Modelos de datos para FastBite POS."""
 
 import dataclasses as _dc
 from dataclasses import dataclass, field
@@ -127,7 +127,11 @@ class Orden:
 
 @dataclass
 class Usuario:
-    """Usuario del sistema con rol de acceso."""
+    """Usuario del sistema con rol de acceso (capa interna).
+    
+    NOTA: password_hash y salt solo se usan internamente en auth_service.
+    Para la capa de vistas usa UsuarioSafe que excluye credenciales.
+    """
     id: Optional[int] = None
     username: str = ""
     password_hash: str = ""
@@ -148,6 +152,30 @@ class Transaccion:
     fecha: str = ""
     categoria: Optional[str] = None
     referencia_orden_id: Optional[int] = None
+
+
+# ─── Modelo seguro para la capa de vistas ────────────────────────────────────
+
+@dataclass
+class UsuarioSafe:
+    """Version del Usuario SIN credenciales — para usar en la capa de vistas.
+    
+    Evita que password_hash y salt se filtren a la UI por error.
+    """
+    id: Optional[int] = None
+    username: str = ""
+    nombre_completo: str = ""
+    rol: str = "cajero"
+    activo: bool = True
+    fecha_creacion: str = ""
+
+    @classmethod
+    def from_usuario(cls, u: "Usuario") -> "UsuarioSafe":
+        """Crea un UsuarioSafe a partir de un Usuario (descarta credenciales)."""
+        return cls(
+            id=u.id, username=u.username, nombre_completo=u.nombre_completo,
+            rol=u.rol, activo=u.activo, fecha_creacion=u.fecha_creacion
+        )
 
 
 # ─── Utilidad de conversión ───────────────────────────────────────────────────

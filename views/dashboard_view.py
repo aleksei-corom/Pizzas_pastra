@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from database.orden_service import OrdenService
 from database.producto_service import ProductoService
+import logging
 import config as app_config
 from views.layouts import create_page_header, create_stats_grid
 from views.components import CardWidget, StatusBadge
@@ -237,4 +238,4 @@ class DashboardView(QWidget):
                 self._top_container.addWidget(empty)
 
         except Exception as e:
-            print(f"Error cargando dashboard: {e}")
+            logging.getLogger(__name__).error("Error cargando dashboard: %s", e, exc_info=True)

@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from datetime import datetime, timedelta
 
 from database.orden_service import OrdenService
+import logging
 from database.producto_service import ProductoService
 import config as app_config
 from views.layouts import create_page_header
@@ -182,4 +183,4 @@ class ReportesView(QWidget):
                 self._update_metric(self._card_producto_top, "Sin datos")
 
         except Exception as e:
-            print(f"Error cargando reportes: {e}")
+            logging.getLogger(__name__).error("Error cargando reportes: %s", e, exc_info=True)

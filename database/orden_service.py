@@ -44,9 +44,9 @@ class OrdenService:
         self._clear_cache()
         ahora = datetime.now().isoformat()
         subtotal = sum(item.subtotal for item in orden.items)
-        total_sin_delivery = round(subtotal + orden.costo_delivery, 2)
+        subtotal_con_delivery = round(subtotal + orden.costo_delivery, 2)
         impuesto = round(subtotal * app_config.TAX_RATE, 2)
-        total = round(total_sin_delivery + impuesto, 2)
+        total = round(subtotal_con_delivery + impuesto, 2)
 
         try:
             self._db.conn.execute("BEGIN IMMEDIATE")
@@ -85,8 +85,10 @@ class OrdenService:
             )
 
             self._db.conn.commit()
-        except Exception:
+        except Exception as e:
             self._db.conn.rollback()
+            import logging
+            logging.getLogger(__name__).error(f"Error creando orden: {e}", exc_info=True)
             raise
 
         orden.id = orden_id

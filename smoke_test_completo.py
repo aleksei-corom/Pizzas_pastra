@@ -30,6 +30,7 @@ Exit codes:
 
 import sys
 import os
+import signal
 import argparse
 import types
 import importlib
@@ -431,9 +432,23 @@ def main() -> int:
         return 0
 
 
+# Timeout global para evitar hangs en CI
+TIMEOUT_SECONDS = 180
+
+def _timeout_handler(signum, frame):
+    print(f"\n[TIMEOUT] Smoke test completo excedió {TIMEOUT_SECONDS}s — abortando.")
+    os._exit(124)
+
 if __name__ == "__main__":
+    if hasattr(signal, 'SIGALRM'):
+        signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(TIMEOUT_SECONDS)
+
     exit_code = main()
+
+    if hasattr(signal, 'SIGALRM'):
+        signal.alarm(0)
+
     sys.stdout.flush()
     sys.stderr.flush()
-    # Salida inmediata sin depender de cleanup de Qt
     os._exit(exit_code)

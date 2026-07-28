@@ -283,13 +283,9 @@ class KDSColumn(QFrame):
                 orden = orden_data
                 items_count = 0
 
-            # Cargar items si no están
+            # Cargar items si no están (ya se pre-cargaron en cargar_datos)
             if not hasattr(orden, 'items') or not orden.items:
-                from database.orden_service import OrdenService
-                o_svc = OrdenService()
-                orden.items = o_svc.get_orden_items(orden.id)
-                if not items_count and orden.items:
-                    items_count = len(orden.items)
+                orden.items = []
 
             card = KDSOrderCard(orden, items_count)
             card.status_changed.connect(self.status_changed.emit)
@@ -488,6 +484,24 @@ class KitchenDisplayView(QWidget):
                 fecha=hoy, estado=estado, limit=50
             )
             todas.extend(rows)
+
+        # FIX: Pre-cargar todos los items de las ordenes en batch para evitar N+1
+        orden_ids = [r["orden"].id for r in todas]
+        items_map: dict[int, list] = {}
+        if orden_ids:
+            placeholders = ",".join("?" for _ in orden_ids)
+            all_items = self.orden_svc._db.conn.execute(
+                f"SELECT * FROM orden_items WHERE orden_id IN ({placeholders}) "
+                f"ORDER BY orden_id, id",
+                orden_ids
+            ).fetchall()
+            from database.models import OrdenItem, row_to_model
+            for item_row in all_items:
+                oid = dict(item_row)["orden_id"]
+                items_map.setdefault(oid, []).append(row_to_model(OrdenItem, item_row))
+
+        for r in todas:
+            r["orden"].items = items_map.get(r["orden"].id, [])
 
         # Separar por estado
         pending = [r for r in todas if r["orden"].estado == "pending"]

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 
 from database.db_manager import DatabaseManager
-from database.models import Usuario
+from database.models import Usuario, UsuarioSafe
 
 
 logger = logging.getLogger(__name__)
@@ -84,34 +84,32 @@ class AuthService:
 
     # ─── CRUD de usuarios ───
 
-    def get_usuario_by_username(self, username: str) -> Optional[Usuario]:
+    def get_usuario_by_username(self, username: str) -> Optional[UsuarioSafe]:
         row = self._db.conn.execute(
             "SELECT * FROM usuarios WHERE username = ?", (username,)
         ).fetchone()
         if not row:
             return None
         d = dict(row)
-        return Usuario(
-            id=d["id"], username=d["username"],
-            password_hash=d["password_hash"], salt=d["salt"],
-            nombre_completo=d["nombre_completo"], rol=d["rol"],
-            activo=bool(d["activo"]), fecha_creacion=d["fecha_creacion"]
-        )
+        return self._build_safe_user(d)
 
-    def get_usuarios(self, solo_activos: bool = False) -> list[Usuario]:
+    def get_usuarios(self, solo_activos: bool = False) -> list[UsuarioSafe]:
         q = "SELECT * FROM usuarios"
         if solo_activos:
             q += " WHERE activo = 1"
         q += " ORDER BY nombre_completo"
         rows = self._db.conn.execute(q).fetchall()
-        return [
-            Usuario(
-                id=r["id"], username=r["username"],
-                password_hash=r["password_hash"], salt=r["salt"],
-                nombre_completo=r["nombre_completo"], rol=r["rol"],
-                activo=bool(r["activo"]), fecha_creacion=r["fecha_creacion"]
-            ) for r in rows
-        ]
+        return [self._build_safe_user(dict(r)) for r in rows]
+
+    @staticmethod
+    def _build_safe_user(d: dict) -> UsuarioSafe:
+        """Construye un UsuarioSafe a partir de un dict de la DB (sin exponer credenciales)."""
+        return UsuarioSafe(
+            id=d["id"], username=d["username"],
+            nombre_completo=d.get("nombre_completo", ""),
+            rol=d["rol"], activo=bool(d["activo"]),
+            fecha_creacion=d.get("fecha_creacion", "")
+        )
 
     def crear_usuario(self, username: str, password: str,
                       nombre_completo: str, rol: str = "cajero") -> int:

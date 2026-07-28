@@ -11,7 +11,7 @@ ROLE_ACCESS = {
 
 
 class Session:
-    """Singleton que mantiene la sesión del usuario logueado y sus preferencias.
+    """Singleton thread-safe que mantiene la sesión del usuario logueado y sus preferencias.
 
     Las preferencias se cargan desde la DB al iniciar sesión y se persisten
     automáticamente al cambiarlas. Esto permite que cada usuario tenga su
@@ -19,6 +19,7 @@ class Session:
     """
 
     _instance = None
+    _lock = __import__("threading").Lock()
 
     def __init__(self):
         self._current_user: Usuario | None = None
@@ -26,8 +27,9 @@ class Session:
 
     @classmethod
     def get(cls) -> "Session":
-        if cls._instance is None:
-            cls._instance = cls()
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = cls()
         return cls._instance
 
     def login(self, user: Usuario):

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import os
 import time
+import signal
 
 
 def main() -> int:
@@ -30,6 +31,7 @@ def main() -> int:
         stderr=subprocess.PIPE,
         cwd=project_root,
         text=True,
+        env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
     )
 
     start = time.monotonic()
@@ -82,4 +84,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    def _global_timeout(signum, frame):
+        print("\n[TIMEOUT] Smoke test excedió 30s — abortando.")
+        sys.exit(124)
+    if hasattr(signal, 'SIGALRM'):
+        signal.signal(signal.SIGALRM, _global_timeout)
+        signal.alarm(35)
     sys.exit(main())

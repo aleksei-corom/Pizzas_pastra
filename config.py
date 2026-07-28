@@ -43,7 +43,15 @@ else:
     # Fallback si no está en Windows o no existe APPDATA
     APP_DATA_DIR = os.path.join(os.path.expanduser("~"), ".fastbitepos")
 
-os.makedirs(APP_DATA_DIR, exist_ok=True)
+def ensure_data_dir() -> str:
+    """Crea el directorio de datos si no existe y lo retorna.
+    
+    Llama esta funcion al inicio de la app (main.py) en vez de ejecutar
+    os.makedirs al importar config.py. Esto evita efectos secundarios
+    durante imports de prueba y mejora la testabilidad.
+    """
+    os.makedirs(APP_DATA_DIR, exist_ok=True)
+    return APP_DATA_DIR
 
 # ─── Base de Datos ───
 DB_PATH = os.path.join(APP_DATA_DIR, "fastbitepos.db")

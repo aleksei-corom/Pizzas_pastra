@@ -1,4 +1,4 @@
-"""Módulo de base de datos de Pizzas Pastra."""
+"""Módulo de base de datos de FastBite POS."""
 
 from database.db_manager import DatabaseManager
 from database.models import Categoria, Producto, Orden, OrdenItem, Usuario, Repartidor, Transaccion, Combo, ComboItem

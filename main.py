@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QIcon
 
 from utils.app_logging import setup_logging, install_exception_hook
+from config import ensure_data_dir
 from utils.session import Session
 from database.db_manager import DatabaseManager
 from database.config_service import ConfigService
@@ -20,6 +21,9 @@ from database.seed_data import seed_database
 
 def main():
     """Inicializa y ejecuta la aplicación."""
+    # Asegurar directorio de datos existe
+    ensure_data_dir()
+
     # Logging y crash handler
     logger = setup_logging()
     install_exception_hook(logger)
