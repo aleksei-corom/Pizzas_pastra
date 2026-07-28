@@ -8,12 +8,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from database.db_manager import DatabaseManager
-from database.models import Producto, Categoria
-from config import CURRENCY_SYMBOL
-from database.db_manager import DatabaseManager
+from database.producto_service import ProductoService
+from database.orden_service import OrdenService
 from database.models import Producto, Categoria, ProductoVariante, ProductoIngrediente
-from config import CURRENCY_SYMBOL
+import config as app_config
 from views.components import ModernMessageBox, SearchBar
 from views.layouts import create_page_header, create_form_row
 from views.components.combo_dialog import ComboDialog
@@ -25,7 +23,7 @@ class VariantesDialog(QDialog):
     def __init__(self, parent=None, producto=None, db=None):
         super().__init__(parent)
         self.producto = producto
-        self.db = db
+        self.prod_svc = db if isinstance(db, ProductoService) else ProductoService()
         self.setWindowTitle(f"Variantes - {producto.nombre}" if producto else "Variantes")
         self.setMinimumSize(500, 400)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
@@ -69,8 +67,8 @@ class VariantesDialog(QDialog):
         form.addWidget(self._var_nombre, 1)
 
         self._var_precio = QDoubleSpinBox()
-        self._var_precio.setPrefix(f"{CURRENCY_SYMBOL} ")
-        self._var_precio.setRange(0, 99.99)
+        self._var_precio.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
+        self._var_precio.setRange(0, 999999.99)
         self._var_precio.setDecimals(2)
         self._var_precio.setValue(2.00)
         self._var_precio.setFixedHeight(36)
@@ -95,12 +93,12 @@ class VariantesDialog(QDialog):
         layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignRight)
 
     def cargar_datos(self):
-        variantes = self.db.get_variantes(self.producto.id)
+        variantes = self.prod_svc.get_variantes(self.producto.id)
         self._table.setRowCount(len(variantes))
         for i, v in enumerate(variantes):
             self._table.setItem(i, 0, QTableWidgetItem(v.nombre))
             self._table.setItem(i, 1,
-                QTableWidgetItem(f"{CURRENCY_SYMBOL}{v.precio_adicional:.2f}"))
+                QTableWidgetItem(f"{app_config.CURRENCY_SYMBOL}{v.precio_adicional:.2f}"))
             self._table.setItem(i, 2, QTableWidgetItem(str(v.orden)))
 
             btn_del = QPushButton("🗑️")
@@ -121,13 +119,13 @@ class VariantesDialog(QDialog):
             precio_adicional=self._var_precio.value(),
             orden=self._table.rowCount() + 1,
         )
-        self.db.crear_variante(v)
+        self.prod_svc.crear_variante(v)
         self._var_nombre.clear()
         self._var_precio.setValue(2.00)
         self.cargar_datos()
 
     def _eliminar_variante(self, vid):
-        self.db.eliminar_variante(vid)
+        self.prod_svc.eliminar_variante(vid)
         self.cargar_datos()
 
 
@@ -173,8 +171,8 @@ class ProductDialog(QDialog):
         layout.addLayout(create_form_row("Categoría", self._categoria, required=True))
 
         self._precio = QDoubleSpinBox()
-        self._precio.setPrefix(f"{CURRENCY_SYMBOL} ")
-        self._precio.setMaximum(9999.99)
+        self._precio.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
+        self._precio.setMaximum(9999999.99)
         self._precio.setDecimals(2)
         layout.addLayout(create_form_row("Precio", self._precio, required=True))
 
@@ -328,7 +326,7 @@ class CategoryManagerDialog(QDialog):
 
     def __init__(self, parent=None, db=None):
         super().__init__(parent)
-        self.db = db
+        self.prod_svc = db if isinstance(db, ProductoService) else ProductoService()
         self.setWindowTitle("Gestionar Categorías")
         self.setMinimumSize(500, 450)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
@@ -377,7 +375,7 @@ class CategoryManagerDialog(QDialog):
         layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignRight)
 
     def cargar_datos(self):
-        categorias = self.db.get_categorias(solo_activas=False)
+        categorias = self.prod_svc.get_categorias(solo_activas=False)
         self._table.setRowCount(len(categorias))
         for i, cat in enumerate(categorias):
             self._table.setItem(i, 0, QTableWidgetItem(cat.icono))
@@ -398,13 +396,13 @@ class CategoryManagerDialog(QDialog):
     def _nueva_categoria(self):
         dlg = CategoryDialog(self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.db.crear_categoria(dlg.categoria)
+            self.prod_svc.crear_categoria(dlg.categoria)
             self.cargar_datos()
 
     def _editar_categoria(self, categoria):
         dlg = CategoryDialog(self, categoria=categoria)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.db.actualizar_categoria(dlg.categoria)
+            self.prod_svc.actualizar_categoria(dlg.categoria)
             self.cargar_datos()
 
     def _eliminar_categoria(self, cat_id):
@@ -414,7 +412,7 @@ class CategoryManagerDialog(QDialog):
         )
         if result == QDialog.DialogCode.Accepted:
             try:
-                self.db.eliminar_categoria(cat_id)
+                self.prod_svc.eliminar_categoria(cat_id)
                 self.cargar_datos()
             except ValueError as e:
                 ModernMessageBox.error(
@@ -432,7 +430,8 @@ class ComboManagementDialog(QDialog):
 
     def __init__(self, parent=None, db=None):
         super().__init__(parent)
-        self.db = db or DatabaseManager()
+        self.orden_svc = db if isinstance(db, OrdenService) else OrdenService()
+        self.prod_svc = ProductoService()
         self.setWindowTitle("Gestionar Combos")
         self.setMinimumSize(650, 500)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
@@ -481,14 +480,14 @@ class ComboManagementDialog(QDialog):
         layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignRight)
 
     def cargar_datos(self):
-        combos = self.db.get_combos(solo_activas=False)
+        combos = self.orden_svc.get_combos(solo_activos=False)
         self._table.setRowCount(len(combos))
         for i, c in enumerate(combos):
             self._table.setItem(i, 0, QTableWidgetItem(c.icono or "🎉"))
             self._table.setItem(i, 1, QTableWidgetItem(c.nombre))
             self._table.setItem(i, 2, QTableWidgetItem(str(len(c.items))))
-            self._table.setItem(i, 3, QTableWidgetItem(f"{CURRENCY_SYMBOL}{c.precio_total:.2f}"))
-            ahorro_text = f"{CURRENCY_SYMBOL}{c.ahorro:.2f}" if c.ahorro > 0 else "—"
+            self._table.setItem(i, 3, QTableWidgetItem(f"{app_config.CURRENCY_SYMBOL}{c.precio_total:.2f}"))
+            ahorro_text = f"{app_config.CURRENCY_SYMBOL}{c.ahorro:.2f}" if c.ahorro > 0 else "—"
             self._table.setItem(i, 4, QTableWidgetItem(ahorro_text))
 
             # Acciones
@@ -513,23 +512,23 @@ class ComboManagementDialog(QDialog):
             self._table.setCellWidget(i, 5, actions_w)
 
     def _nuevo_combo(self):
-        dlg = ComboDialog(self, db=self.db)
+        dlg = ComboDialog(self, db=self.prod_svc)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.db.crear_combo(dlg.combo)
+            self.orden_svc.crear_combo(dlg.combo)
             ModernMessageBox.success(self, "Combo Creado", f"{dlg.combo.nombre} creado exitosamente.")
             self.cargar_datos()
 
     def _editar_combo(self, combo):
-        dlg = ComboDialog(self, combo=combo, db=self.db)
+        dlg = ComboDialog(self, combo=combo, db=self.prod_svc)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             # Para editar: eliminar el combo viejo y crear el nuevo
-            self.db.eliminar_combo(combo.id)
-            self.db.crear_combo(dlg.combo)
+            self.orden_svc.eliminar_combo(combo.id)
+            self.orden_svc.crear_combo(dlg.combo)
             ModernMessageBox.success(self, "Combo Actualizado", f"{dlg.combo.nombre} actualizado.")
             self.cargar_datos()
 
     def _toggle_combo(self, combo_id):
-        self.db.toggle_combo(combo_id)
+        self.orden_svc.toggle_combo(combo_id)
         self.cargar_datos()
 
 
@@ -538,7 +537,8 @@ class MenuView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.prod_svc = ProductoService()
+        self.orden_svc = OrdenService()
         self._build_ui()
         self.cargar_datos()
 
@@ -608,7 +608,7 @@ class MenuView(QWidget):
     def _load_categorias_filter(self):
         self._cat_filter.clear()
         self._cat_filter.addItem("Todas las categorías", None)
-        for cat in self.db.get_categorias(solo_activas=False):
+        for cat in self.prod_svc.get_categorias(solo_activas=False):
             self._cat_filter.addItem(f"{cat.icono} {cat.nombre}", cat.id)
 
     def _filtrar(self):
@@ -616,11 +616,11 @@ class MenuView(QWidget):
         cat_id = self._cat_filter.currentData()
 
         if search_text:
-            productos = self.db.buscar_productos(search_text)
+            productos = self.prod_svc.buscar_productos(search_text)
             if cat_id:
                 productos = [p for p in productos if p.categoria_id == cat_id]
         else:
-            productos = self.db.get_productos(categoria_id=cat_id)
+            productos = self.prod_svc.get_productos(categoria_id=cat_id)
 
         self._populate_table(productos)
 
@@ -630,7 +630,7 @@ class MenuView(QWidget):
             self._table.setItem(i, 0, QTableWidgetItem(prod.icono))
             self._table.setItem(i, 1, QTableWidgetItem(prod.nombre))
             self._table.setItem(i, 2, QTableWidgetItem(prod.categoria_nombre))
-            self._table.setItem(i, 3, QTableWidgetItem(f"{CURRENCY_SYMBOL}{prod.precio:.2f}"))
+            self._table.setItem(i, 3, QTableWidgetItem(f"{app_config.CURRENCY_SYMBOL}{prod.precio:.2f}"))
 
             # Columna variantes
             btn_vars = QPushButton("📏" if prod.tiene_variantes else "➕")
@@ -656,18 +656,18 @@ class MenuView(QWidget):
             self._table.setCellWidget(i, 7, btn_del)
 
     def _nuevo_producto(self):
-        categorias = self.db.get_categorias()
+        categorias = self.prod_svc.get_categorias()
         dlg = ProductDialog(self, categorias=categorias)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.db.crear_producto(dlg.producto)
+            self.prod_svc.crear_producto(dlg.producto)
             ModernMessageBox.success(self, "Producto Creado", f"{dlg.producto.nombre} agregado al menú.")
             self.cargar_datos()
 
     def _editar_producto(self, producto):
-        categorias = self.db.get_categorias()
+        categorias = self.prod_svc.get_categorias()
         dlg = ProductDialog(self, producto=producto, categorias=categorias)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.db.actualizar_producto(dlg.producto)
+            self.prod_svc.actualizar_producto(dlg.producto)
             ModernMessageBox.success(self, "Producto Actualizado", f"{dlg.producto.nombre} actualizado.")
             self.cargar_datos()
 
@@ -677,21 +677,21 @@ class MenuView(QWidget):
             "¿Estás seguro de que deseas desactivar este producto?\nEl producto quedará como 'No disponible' en el menú."
         )
         if result == QDialog.DialogCode.Accepted:
-            self.db.eliminar_producto(prod_id)
+            self.prod_svc.eliminar_producto(prod_id)
             self.cargar_datos()
 
     def _gestionar_variantes(self, producto):
-        dlg = VariantesDialog(self, producto=producto, db=self.db)
+        dlg = VariantesDialog(self, producto=producto, db=self.prod_svc)
         dlg.exec()
         self.cargar_datos()
 
     def _gestionar_categorias(self):
-        dlg = CategoryManagerDialog(self, db=self.db)
+        dlg = CategoryManagerDialog(self, db=self.prod_svc)
         dlg.exec()
         self.cargar_datos()
 
     def _gestionar_combos(self):
         """Abre el diálogo de gestión de combos."""
-        dlg = ComboManagementDialog(self, db=self.db)
+        dlg = ComboManagementDialog(self, db=self.orden_svc)
         dlg.exec()
         self.cargar_datos()

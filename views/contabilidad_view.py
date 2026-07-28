@@ -8,9 +8,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from datetime import datetime
 
-from database.db_manager import DatabaseManager
+from database.contabilidad_service import ContabilidadService
 from database.models import Transaccion
-from config import CURRENCY_SYMBOL
+import config as app_config
 from views.layouts import create_page_header
 from views.components import ModernMessageBox
 
@@ -48,8 +48,8 @@ class RegistrarEgresoDialog(QDialog):
         layout.addWidget(self.desc_input)
 
         self.monto_input = QDoubleSpinBox()
-        self.monto_input.setRange(0.01, 100000.00)
-        self.monto_input.setPrefix(f"{CURRENCY_SYMBOL} ")
+        self.monto_input.setRange(0.01, 9999999.99)
+        self.monto_input.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
         layout.addWidget(QLabel("Monto:"))
         layout.addWidget(self.monto_input)
 
@@ -103,7 +103,7 @@ class ResumenTarjeta(QFrame):
         lbl_titulo = QLabel(titulo)
         lbl_titulo.setProperty("class", "section")
         
-        self.lbl_valor = QLabel(f"{CURRENCY_SYMBOL}{valor:.2f}")
+        self.lbl_valor = QLabel(f"{app_config.CURRENCY_SYMBOL}{valor:.2f}")
         self.lbl_valor.setProperty("class", f"title {color_clase}")
         self.lbl_valor.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -112,7 +112,7 @@ class ResumenTarjeta(QFrame):
         layout.setAlignment(lbl_titulo, Qt.AlignmentFlag.AlignHCenter)
 
     def set_valor(self, valor):
-        self.lbl_valor.setText(f"{CURRENCY_SYMBOL}{valor:.2f}")
+        self.lbl_valor.setText(f"{app_config.CURRENCY_SYMBOL}{valor:.2f}")
 
 
 class ContabilidadView(QWidget):
@@ -120,7 +120,7 @@ class ContabilidadView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.cont_svc = ContabilidadService()
         self._build_ui()
         self.cargar_datos()
 
@@ -172,7 +172,7 @@ class ContabilidadView(QWidget):
         layout.addWidget(self._table, 1)
 
     def cargar_datos(self):
-        balance = self.db.get_balance_contable()
+        balance = self.cont_svc.get_balance_contable()
         self.card_ingresos.set_valor(balance["total_ingresos"])
         self.card_egresos.set_valor(balance["total_egresos"])
         self.card_balance.set_valor(balance["balance_neto"])
@@ -184,7 +184,7 @@ class ContabilidadView(QWidget):
         self.card_balance.lbl_valor.style().unpolish(self.card_balance.lbl_valor)
         self.card_balance.lbl_valor.style().polish(self.card_balance.lbl_valor)
 
-        transacciones = self.db.get_transacciones()
+        transacciones = self.cont_svc.get_transacciones()
         self._table.setRowCount(len(transacciones))
         for i, t in enumerate(transacciones):
             fecha = t.fecha.replace("T", " ")[:16]
@@ -200,7 +200,7 @@ class ContabilidadView(QWidget):
             self._table.setItem(i, 2, QTableWidgetItem(t.descripcion))
             self._table.setItem(i, 3, QTableWidgetItem(t.categoria or "-"))
             
-            monto_str = f"{CURRENCY_SYMBOL}{t.monto:.2f}"
+            monto_str = f"{app_config.CURRENCY_SYMBOL}{t.monto:.2f}"
             self._table.setItem(i, 4, QTableWidgetItem(monto_str))
             
             self._table.setRowHeight(i, 40)
@@ -208,5 +208,5 @@ class ContabilidadView(QWidget):
     def _registrar_egreso(self):
         dlg = RegistrarEgresoDialog(self)
         if dlg.exec() == QDialog.DialogCode.Accepted and dlg.resultado_transaccion:
-            self.db.crear_transaccion(dlg.resultado_transaccion)
+            self.cont_svc.crear_transaccion(dlg.resultado_transaccion)
             self.cargar_datos()

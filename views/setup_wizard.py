@@ -3,11 +3,14 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QLineEdit, QDoubleSpinBox, QFrame, QWidget, QStackedWidget,
+    QComboBox,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 
-from database.db_manager import DatabaseManager
+from database.config_service import ConfigService
+from database.auth_service import AuthService
+import config as app_config
 
 
 class SetupWizard(QDialog):
@@ -15,7 +18,8 @@ class SetupWizard(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.cfg_svc = ConfigService()
+        self.auth_svc = AuthService()
         self.setWindowTitle("Configuración Inicial")
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
         self.setMinimumSize(560, 680)
@@ -98,7 +102,16 @@ class SetupWizard(QDialog):
         row_currency = QHBoxLayout()
         self._currency = self._create_input("$", "")
         self._currency.setFixedWidth(60)
-        row_currency.addWidget(self._field("Moneda", self._currency))
+        row_currency.addWidget(self._field("Símbolo", self._currency))
+
+        self._currency_code = QComboBox()
+        self._currency_code.setFixedHeight(42)
+        self._currency_code.setMinimumWidth(200)
+        self._currency_code.setStyleSheet(self._input_style())
+        for code, info in app_config.CURRENCY_CODES.items():
+            self._currency_code.addItem(f"{code} — {info['name']} ({info['symbol']})", code)
+        self._currency_code.currentIndexChanged.connect(self._on_currency_code_changed)
+        row_currency.addWidget(self._field("Tipo de Moneda", self._currency_code))
 
         self._tax_rate = QDoubleSpinBox()
         self._tax_rate.setRange(0, 100)
@@ -229,24 +242,30 @@ class SetupWizard(QDialog):
         self._btn_next.setText("Siguiente →")
         self._step_lbl.setText("Paso 1 de 2")
 
+    def _on_currency_code_changed(self):
+        """Actualiza automáticamente el símbolo al cambiar el código de moneda."""
+        code = self._currency_code.currentData()
+        if code and code in app_config.CURRENCY_CODES:
+            self._currency.setText(app_config.CURRENCY_CODES[code]["symbol"])
+
     def _finish(self):
         """Guarda toda la configuración y crea el admin."""
-        import config as app_config
-
         biz_name = self._business_name.text().strip()
         biz_slogan = self._business_slogan.text().strip()
         biz_phone = self._business_phone.text().strip()
         biz_address = self._business_address.text().strip()
         currency = self._currency.text().strip() or "$"
+        currency_code = self._currency_code.currentData() or "USD"
         tax = self._tax_rate.value() / 100.0
 
         # Guardar en DB
-        self.db.set_config("business_name", biz_name)
-        self.db.set_config("business_slogan", biz_slogan)
-        self.db.set_config("business_phone", biz_phone)
-        self.db.set_config("business_address", biz_address)
-        self.db.set_config("currency_symbol", currency)
-        self.db.set_config("tax_rate", str(tax))
+        self.cfg_svc.set_config("business_name", biz_name)
+        self.cfg_svc.set_config("business_slogan", biz_slogan)
+        self.cfg_svc.set_config("business_phone", biz_phone)
+        self.cfg_svc.set_config("business_address", biz_address)
+        self.cfg_svc.set_config("currency_symbol", currency)
+        self.cfg_svc.set_config("currency_code", currency_code)
+        self.cfg_svc.set_config("tax_rate", str(tax))
 
         # Actualizar config globals en memoria
         app_config.APP_NAME = biz_name
@@ -255,10 +274,11 @@ class SetupWizard(QDialog):
         app_config.BUSINESS_PHONE = biz_phone
         app_config.BUSINESS_ADDRESS = biz_address
         app_config.CURRENCY_SYMBOL = currency
+        app_config.CURRENCY_CODE = currency_code
         app_config.TAX_RATE = tax
 
         # Crear usuario admin
-        self.db.crear_usuario(
+        self.auth_svc.crear_usuario(
             username=self._admin_user.text().strip(),
             password=self._admin_pw.text(),
             nombre_completo=self._admin_name.text().strip(),

@@ -28,7 +28,12 @@ def run_daily_backup():
         return
 
     try:
-        shutil.copy2(DB_PATH, backup_file)
+        import sqlite3 as _sqlite3
+        src = _sqlite3.connect(DB_PATH)
+        dst = _sqlite3.connect(backup_file)
+        src.backup(dst)   # API nativa: safe con WAL, garantiza consistencia transaccional
+        dst.close()
+        src.close()
         logger.info(f"Backup creado exitosamente: {backup_file}")
         _cleanup_old_backups(backup_dir, keep_last=7)
     except Exception as e:

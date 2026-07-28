@@ -13,8 +13,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Signal
 
-from database.db_manager import DatabaseManager
-from config import CURRENCY_SYMBOL, ORDER_TYPES
+from database.orden_service import OrdenService
+from database.repartidor_service import RepartidorService
+import config as app_config
 
 
 # ─── Constantes de tiempo ───
@@ -57,10 +58,10 @@ class KDSOrderCard(QFrame):
         header.addWidget(self._lbl_numero)
 
         # Tipo de orden
-        tipo_icon = ORDER_TYPES.get(self.orden.tipo, "🍽️").split()[0]
+        tipo_icon = app_config.ORDER_TYPES.get(self.orden.tipo, "🍽️").split()[0]
         tipo_lbl = QLabel(tipo_icon)
         tipo_lbl.setProperty("class", "kds-type-icon")
-        tipo_lbl.setToolTip(ORDER_TYPES.get(self.orden.tipo, self.orden.tipo))
+        tipo_lbl.setToolTip(app_config.ORDER_TYPES.get(self.orden.tipo, self.orden.tipo))
         header.addWidget(tipo_lbl)
 
         header.addStretch()
@@ -146,9 +147,9 @@ class KDSOrderCard(QFrame):
 
         # Delivery — botón de asignar repartidor
         if self.orden.tipo == "delivery" and self.orden.estado == "ready" and not self.orden.repartidor_id:
-            from database.db_manager import DatabaseManager
-            db = DatabaseManager()
-            disponibles = db.get_repartidores_disponibles()
+            from database.repartidor_service import RepartidorService
+            rep_svc = RepartidorService()
+            disponibles = rep_svc.get_repartidores_disponibles()
             if disponibles:
                 btn_asignar = QPushButton(f"🛵 Asignar ({len(disponibles)} disp.)")
                 btn_asignar.setProperty("class", "kds-btn-warning")
@@ -160,11 +161,11 @@ class KDSOrderCard(QFrame):
 
     def _asignar_repartidor(self):
         """Asigna el primer repartidor disponible."""
-        db = DatabaseManager()
-        disponibles = db.get_repartidores_disponibles()
+        rep_svc = RepartidorService()
+        disponibles = rep_svc.get_repartidores_disponibles()
         if disponibles:
             rep = disponibles[0]
-            db.asignar_repartidor(self.orden.id, rep.id)
+            rep_svc.asignar_repartidor(self.orden.id, rep.id)
             self.status_changed.emit(self.orden.id, "en_delivery")
 
     def _update_timer_display(self):
@@ -259,20 +260,20 @@ class KDSColumn(QFrame):
         self._cards = []
 
         if not ordenes_list:
-            empty = QLabel(f"📭  {self.status_key}")
+            empty = QLabel(f"💭  {self.status_key}")
             empty.setProperty("class", "kds-empty")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._scroll_layout.insertWidget(0, empty)
             self._count_badge.setText("0")
             return
 
-        # Remover widget "empty" si existe
-        first_item = self._scroll_layout.itemAt(0)
-        if first_item and first_item.widget():
-            w = first_item.widget()
-            if w.property("class") == "kds-empty":
-                self._scroll_layout.removeWidget(w)
+        # Remover widget "empty" si existe (buscarlo en todos los ítems del layout)
+        for i in range(self._scroll_layout.count()):
+            item = self._scroll_layout.itemAt(i)
+            if item and item.widget() and item.widget().property("class") == "kds-empty":
+                w = self._scroll_layout.takeAt(i).widget()
                 w.deleteLater()
+                break
 
         for orden_data in ordenes_list:
             if isinstance(orden_data, dict):
@@ -284,8 +285,9 @@ class KDSColumn(QFrame):
 
             # Cargar items si no están
             if not hasattr(orden, 'items') or not orden.items:
-                db = DatabaseManager()
-                orden.items = db.get_orden_items(orden.id)
+                from database.orden_service import OrdenService
+                o_svc = OrdenService()
+                orden.items = o_svc.get_orden_items(orden.id)
                 if not items_count and orden.items:
                     items_count = len(orden.items)
 
@@ -308,7 +310,8 @@ class KitchenDisplayView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.orden_svc = OrdenService()
+        self.rep_svc = RepartidorService()
         self._prev_pending_count = 0
 
         self._build_ui()
@@ -337,6 +340,8 @@ class KitchenDisplayView(QWidget):
         header.addWidget(self._stat_preparando)
         self._stat_listos, self._stat_val_listos = self._make_stat_label("✅ Listos", "0", "#34d399")
         header.addWidget(self._stat_listos)
+        self._stat_delivery, self._stat_val_delivery = self._make_stat_label("🛵 En Camino", "0", "#fb923c")
+        header.addWidget(self._stat_delivery)
 
         # Reloj actual
         self._clock_lbl = QLabel()
@@ -362,7 +367,7 @@ class KitchenDisplayView(QWidget):
 
         layout.addLayout(header)
 
-        # ── Tres columnas de órdenes ──
+        # ── Cuatro columnas de órdenes ──
         columns_layout = QHBoxLayout()
         columns_layout.setSpacing(16)
 
@@ -380,6 +385,12 @@ class KitchenDisplayView(QWidget):
                                      "No hay órdenes listas")
         self._col_ready.status_changed.connect(self._on_status_change)
         columns_layout.addWidget(self._col_ready, 1)
+
+        # Columna de delivery activo (en_delivery) — antes las órdenes desaparecían aquí
+        self._col_delivery = KDSColumn("En Camino", "🛵", "en_delivery",
+                                        "Sin pedidos en camino")
+        self._col_delivery.status_changed.connect(self._on_status_change)
+        columns_layout.addWidget(self._col_delivery, 1)
 
         layout.addLayout(columns_layout, 1)
 
@@ -412,11 +423,12 @@ class KitchenDisplayView(QWidget):
         l.addWidget(val)
         return w, val
 
-    def _update_stats(self, pending_count, preparing_count, ready_count):
+    def _update_stats(self, pending_count, preparing_count, ready_count, delivery_count=0):
         """Actualiza los contadores de estadísticas."""
         self._stat_val_pendientes.setText(str(pending_count))
         self._stat_val_preparando.setText(str(preparing_count))
         self._stat_val_listos.setText(str(ready_count))
+        self._stat_val_delivery.setText(str(delivery_count))
 
     def _update_clock(self):
         now = datetime.now()
@@ -452,6 +464,7 @@ class KitchenDisplayView(QWidget):
         self._col_pending.refresh_timers()
         self._col_preparing.refresh_timers()
         self._col_ready.refresh_timers()
+        self._col_delivery.refresh_timers()
 
     def _notify_new_orders(self):
         """Notificación sonora + visual."""
@@ -466,13 +479,12 @@ class KitchenDisplayView(QWidget):
         """Carga todas las órdenes activas de cocina."""
         hoy = datetime.now().strftime("%Y-%m-%d")
 
-        # Cargar órdenes activas (pending, preparing, ready)
-        # Excluir cancelled y delivered
-        estados_activos = ["pending", "preparing", "ready"]
+        # Cargar órdenes activas (pending, preparing, ready, en_delivery)
+        estados_activos = ["pending", "preparing", "ready", "en_delivery"]
         todas = []
 
         for estado in estados_activos:
-            rows = self.db.get_ordenes_con_items_count(
+            rows = self.orden_svc.get_ordenes_con_items_count(
                 fecha=hoy, estado=estado, limit=50
             )
             todas.extend(rows)
@@ -481,21 +493,23 @@ class KitchenDisplayView(QWidget):
         pending = [r for r in todas if r["orden"].estado == "pending"]
         preparing = [r for r in todas if r["orden"].estado == "preparing"]
         ready = [r for r in todas if r["orden"].estado == "ready"]
+        en_delivery = [r for r in todas if r["orden"].estado == "en_delivery"]
 
         # Actualizar columnas
         self._col_pending.set_ordenes(pending)
         self._col_preparing.set_ordenes(preparing)
         self._col_ready.set_ordenes(ready)
+        self._col_delivery.set_ordenes(en_delivery)
 
         # Guardar conteo anterior para detección de nuevas órdenes
         self._prev_pending_count = len(pending)
 
         # Actualizar estadísticas
-        self._update_stats(len(pending), len(preparing), len(ready))
+        self._update_stats(len(pending), len(preparing), len(ready), len(en_delivery))
 
     def _on_status_change(self, orden_id, nuevo_estado):
         """Maneja cambio de estado desde una tarjeta."""
-        self.db.actualizar_estado_orden(orden_id, nuevo_estado)
+        self.orden_svc.actualizar_estado_orden(orden_id, nuevo_estado)
         self.cargar_datos()
 
         # Si la orden está lista, notificar

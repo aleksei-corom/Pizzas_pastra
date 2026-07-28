@@ -15,6 +15,23 @@ CURRENCY_SYMBOL = "$"
 CURRENCY_CODE = "USD"
 TAX_RATE = 0.16  # 16% IVA
 
+# Lista de monedas compatibles
+CURRENCY_CODES = {
+    "USD": {"symbol": "$", "name": "Dólar Estadounidense"},
+    "EUR": {"symbol": "€", "name": "Euro"},
+    "MXN": {"symbol": "$", "name": "Peso Mexicano"},
+    "GTQ": {"symbol": "Q", "name": "Quetzal Guatemalteco"},
+    "COP": {"symbol": "$", "name": "Peso Colombiano"},
+    "ARS": {"symbol": "$", "name": "Peso Argentino"},
+    "CLP": {"symbol": "$", "name": "Peso Chileno"},
+    "PEN": {"symbol": "S/", "name": "Sol Peruano"},
+    "BOB": {"symbol": "Bs", "name": "Boliviano"},
+    "CRC": {"symbol": "₡", "name": "Colón Costarricense"},
+    "DOP": {"symbol": "RD$", "name": "Peso Dominicano"},
+    "PAB": {"symbol": "B/.", "name": "Balboa Panameño"},
+    "VES": {"symbol": "Bs.S", "name": "Bolívar Soberano"},
+}
+
 # ─── Rutas de Datos (Producción) ───
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -56,6 +73,7 @@ ORDER_STATUS = {
     "pending": "⏳ Pendiente",
     "preparing": "👨‍🍳 En Preparación",
     "ready": "✅ Listo",
+    "en_delivery": "🛵 En Camino",
     "delivered": "📦 Entregado",
     "cancelled": "❌ Cancelado",
 }

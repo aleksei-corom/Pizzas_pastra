@@ -1,5 +1,6 @@
 """Modelos de datos para Pizzas Pastra."""
 
+import dataclasses as _dc
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
@@ -147,3 +148,22 @@ class Transaccion:
     fecha: str = ""
     categoria: Optional[str] = None
     referencia_orden_id: Optional[int] = None
+
+
+# ─── Utilidad de conversión ───────────────────────────────────────────────────
+
+def row_to_model(cls, row):
+    """Construye un dataclass desde una sqlite3.Row filtrando columnas no definidas en el modelo.
+
+    Evita TypeError si la DB tiene columnas extra (migraciones futuras) que
+    aún no están definidas como campos en el dataclass correspondiente.
+
+    Args:
+        cls: Clase dataclass destino (Orden, Producto, Categoria, etc.).
+        row: sqlite3.Row o dict con los datos de la consulta.
+
+    Returns:
+        Instancia del dataclass con los campos conocidos poblados.
+    """
+    known = {f.name for f in _dc.fields(cls)}
+    return cls(**{k: v for k, v in dict(row).items() if k in known})

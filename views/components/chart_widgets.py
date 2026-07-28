@@ -11,7 +11,7 @@ from PySide6.QtCharts import (
     QLineSeries, QValueAxis,
 )
 
-from config import CURRENCY_SYMBOL
+import config as app_config
 
 
 # ─── Paleta de colores para gráficos ───
@@ -124,7 +124,7 @@ class SalesBarChart(QFrame):
         axis_y.setLabelsFont(QFont("Segoe UI", 9))
         axis_y.setGridLineColor(QColor("#334155"))
         axis_y.setLineVisible(False)
-        axis_y.setLabelFormat(f"{CURRENCY_SYMBOL}%.0f")
+        axis_y.setLabelFormat(f"{app_config.CURRENCY_SYMBOL}%.0f")
         self._chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 

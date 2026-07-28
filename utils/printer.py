@@ -16,7 +16,6 @@ from io import BytesIO
 import base64
 from datetime import datetime
 
-import qrcode
 
 import config as app_config
 
@@ -140,13 +139,16 @@ def format_receipt_text(orden, items, paper_width: int = 48) -> str:
     lines = []
 
     # Header
+    def _center_trunc(text, width):
+        return text.center(width)[:width]
+
     lines.append("")
-    lines.append(app_config.BUSINESS_NAME.center(paper_width))
+    lines.append(_center_trunc(app_config.BUSINESS_NAME, paper_width))
     if app_config.BUSINESS_SLOGAN:
-        lines.append(app_config.BUSINESS_SLOGAN.center(paper_width))
-    lines.append(app_config.BUSINESS_ADDRESS.center(paper_width))
+        lines.append(_center_trunc(app_config.BUSINESS_SLOGAN, paper_width))
+    lines.append(_center_trunc(app_config.BUSINESS_ADDRESS, paper_width))
     if app_config.BUSINESS_PHONE:
-        lines.append(f"Tel: {app_config.BUSINESS_PHONE}".center(paper_width))
+        lines.append(_center_trunc(f"Tel: {app_config.BUSINESS_PHONE}", paper_width))
     lines.append(sep)
 
     # Order info
@@ -160,34 +162,34 @@ def format_receipt_text(orden, items, paper_width: int = 48) -> str:
     lines.append(dash)
 
     # Items header
-    lines.append(f"{'CANT':>4} {'DESCRIPCION':<{paper_width-18}} {'PRECIO':>7} {'TOTAL':>7}")
+    lines.append(f"{'CANT':>4} {'DESCRIPCION':<{paper_width-21}} {'PRECIO':>7} {'TOTAL':>7}")
     lines.append(dash)
 
     # Items
     for item in items:
-        nombre = item.producto_nombre[:paper_width - 20]
+        nombre = item.producto_nombre[:paper_width - 21]
         qty_str = f"x{item.cantidad}"
         price_str = f"{app_config.CURRENCY_SYMBOL}{item.precio_unitario:.2f}"
         total_str = f"{app_config.CURRENCY_SYMBOL}{item.subtotal:.2f}"
-        lines.append(f"{qty_str:>4} {nombre:<{paper_width-18}} {price_str:>7} {total_str:>7}")
+        lines.append(f"{qty_str:>4} {nombre:<{paper_width-21}} {price_str:>7} {total_str:>7}")
 
     lines.append(dash)
 
     # Totals
     subtotal_str = f"{app_config.CURRENCY_SYMBOL}{orden.subtotal:.2f}"
-    lines.append(f"{'SUBTOTAL:':>{paper_width-8}} {subtotal_str:>8}")
+    lines.append(f"{'SUBTOTAL:':>{paper_width-9}} {subtotal_str:>8}")
 
     tax_str = f"{app_config.CURRENCY_SYMBOL}{orden.impuesto:.2f}"
     tax_label = f"IVA ({int(app_config.TAX_RATE*100)}%):"
-    lines.append(f"{tax_label:>{paper_width-8}} {tax_str:>8}")
+    lines.append(f"{tax_label:>{paper_width-9}} {tax_str:>8}")
 
     if hasattr(orden, 'costo_delivery') and orden.costo_delivery > 0:
         delivery_str = f"{app_config.CURRENCY_SYMBOL}{orden.costo_delivery:.2f}"
-        lines.append(f"{'DELIVERY:':>{paper_width-8}} {delivery_str:>8}")
+        lines.append(f"{'DELIVERY:':>{paper_width-9}} {delivery_str:>8}")
 
     lines.append(sep)
     total_str = f"{app_config.CURRENCY_SYMBOL}{orden.total:.2f}"
-    lines.append(f"{'TOTAL':>{paper_width-8}} {total_str:>8}")
+    lines.append(f"{'TOTAL':>{paper_width-9}} {total_str:>8}")
     lines.append(sep)
 
     if orden.notas:
@@ -204,9 +206,9 @@ def format_receipt_text(orden, items, paper_width: int = 48) -> str:
 
     # Footer
     lines.append("")
-    lines.append("Gracias por su compra!".center(paper_width))
+    lines.append(_center_trunc("Gracias por su compra!", paper_width))
     lines.append("")
-    lines.append("FastBite POS".center(paper_width))
+    lines.append(_center_trunc("FastBite POS", paper_width))
     lines.append("")
 
     return "\n".join(lines)
@@ -233,6 +235,7 @@ def format_receipt_html(orden, items, include_qr=True) -> str:
     qr_section_html = ""
     if include_qr:
         try:
+            import qrcode  # lazy import – optional dependency
             qr_data = (
                 f"Orden: {orden.numero}\n"
                 f"Total: {app_config.CURRENCY_SYMBOL}{orden.total:.2f}\n"
@@ -488,6 +491,7 @@ class ESCPOSPrinter:
                         'L' (7%), 'M' (15%), 'Q' (25%), 'H' (30%).
         """
         try:
+            import qrcode  # lazy import – optional dependency
             ec_map = {"L": 48, "M": 49, "Q": 50, "H": 51}
             ec = ec_map.get(error_level.upper(), 49)
 
@@ -672,9 +676,9 @@ class ESCPOSPrinter:
     def _print_qr_if_enabled(self, orden):
         """Imprime QR con info de la orden si la configuración lo habilita."""
         try:
-            from database.db_manager import DatabaseManager
-            db = DatabaseManager()
-            qr_enabled = db.get_config("printer_print_qr")
+            from database.config_service import ConfigService
+            cfg_svc = ConfigService()
+            qr_enabled = cfg_svc.get_config("printer_print_qr")
             if qr_enabled == "0":
                 return
         except Exception:
@@ -781,9 +785,9 @@ def save_receipt_pdf(orden, items) -> tuple[bool, str]:
     """
     try:
         # Verificar si está habilitado en config
-        from database.db_manager import DatabaseManager
-        db = DatabaseManager()
-        cfg = db.get_config("printer_save_pdf")
+        from database.config_service import ConfigService
+        cfg_svc = ConfigService()
+        cfg = cfg_svc.get_config("printer_save_pdf")
         if cfg == "0":
             return False, "PDF backup disabled in config"
     except Exception:
@@ -871,12 +875,12 @@ def print_receipt(orden, items, printer_name=None, auto_cut=None, paper_width=No
 
     # Leer configuración desde DB (o usar defaults)
     try:
-        from database.db_manager import DatabaseManager
-        db = DatabaseManager()
-        cfg_printer = db.get_config("printer_name") or printer_name
-        cfg_auto_cut = db.get_config("printer_auto_cut")
-        cfg_paper = db.get_config("printer_paper_width")
-        cfg_codepage = db.get_config("printer_codepage")
+        from database.config_service import ConfigService
+        cfg_svc = ConfigService()
+        cfg_printer = cfg_svc.get_config("printer_name") or printer_name
+        cfg_auto_cut = cfg_svc.get_config("printer_auto_cut")
+        cfg_paper = cfg_svc.get_config("printer_paper_width")
+        cfg_codepage = cfg_svc.get_config("printer_codepage")
 
         if auto_cut is None:
             auto_cut = cfg_auto_cut != "0" if cfg_auto_cut is not None else True

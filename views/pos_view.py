@@ -7,9 +7,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QShortcut, QKeySequence
 
-from database.db_manager import DatabaseManager
+from database.producto_service import ProductoService
+from database.orden_service import OrdenService
 from database.models import Orden, OrdenItem
-from config import CURRENCY_SYMBOL
+import config as app_config
 from views.components import ProductCard, OrderPanel, SearchBar, ModernMessageBox
 from views.components.combo_card import ComboCard
 from views.layouts import create_page_header
@@ -20,7 +21,8 @@ class POSView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.prod_svc = ProductoService()
+        self.orden_svc = OrdenService()
         self._current_category = None
         self._cat_buttons = {}
         self._product_cards = []
@@ -179,7 +181,7 @@ class POSView(QWidget):
         self._cat_layout.insertWidget(0, btn_all)
         self._cat_buttons[None] = btn_all
 
-        categorias = self.db.get_categorias()
+        categorias = self.prod_svc.get_categorias()
         for i, cat in enumerate(categorias):
             btn = QPushButton(f"{cat.icono} {cat.nombre}")
             btn.setCheckable(True)
@@ -213,7 +215,7 @@ class POSView(QWidget):
         if self._current_category == self._COMBO_KEY:
             # En modo combos, filtrar combos
             if text.strip():
-                combos = self.db.get_combos(solo_activos=True)
+                combos = self.orden_svc.get_combos(solo_activos=True)
                 combos = [c for c in combos if text.lower() in c.nombre.lower()]
                 self._display_combos(combos)
             else:
@@ -221,9 +223,9 @@ class POSView(QWidget):
             return
 
         if text.strip():
-            productos = self.db.buscar_productos(text.strip())
+            productos = self.prod_svc.buscar_productos(text.strip())
         else:
-            productos = self.db.get_productos(
+            productos = self.prod_svc.get_productos(
                 categoria_id=self._current_category,
                 solo_disponibles=True
             )
@@ -231,7 +233,7 @@ class POSView(QWidget):
 
     def _load_products(self):
         """Carga productos de la categoría seleccionada."""
-        productos = self.db.get_productos(
+        productos = self.prod_svc.get_productos(
             categoria_id=self._current_category,
             solo_disponibles=True
         )
@@ -239,7 +241,7 @@ class POSView(QWidget):
 
     def _load_combos(self):
         """Carga combos activos y los muestra en el grid."""
-        combos = self.db.get_combos(solo_activos=True)
+        combos = self.orden_svc.get_combos(solo_activos=True)
         self._display_combos(combos)
 
     def _display_combos(self, combos: list):
@@ -310,11 +312,12 @@ class POSView(QWidget):
                 precio_unitario=item.precio_individual,
             )
             self._order_panel.add_item(orden_item)
-        self._order_panel.show_toast(f"🎉 Combo {combo.nombre} agregado ({CURRENCY_SYMBOL}{combo.precio_total:.2f})", "success")
+        self._order_panel.show_toast(f"🎉 Combo {combo.nombre} agregado ({app_config.CURRENCY_SYMBOL}{combo.precio_total:.2f})", "success")
 
     def _add_to_order(self, producto):
         """Agrega un producto a la orden actual, mostrando selector de variantes si aplica."""
         if producto.tiene_variantes:
+            from PySide6.QtWidgets import QDialog
             from views.components.variant_dialog import VariantDialog
             dlg = VariantDialog(producto, self)
             if dlg.exec() != QDialog.DialogCode.Accepted:
@@ -365,7 +368,7 @@ class POSView(QWidget):
                 costo_delivery=order_data.get('costo_delivery', 0.0),
                 tiempo_estimado=order_data.get('tiempo_estimado', 0),
             )
-            orden_guardada = self.db.crear_orden(orden)
+            orden_guardada = self.orden_svc.crear_orden(orden)
 
             # Construir mensaje con detalle de métodos de pago
             if len(metodos_pago) == 1:
@@ -373,11 +376,11 @@ class POSView(QWidget):
                 pago_str = f"Método: {metodo.capitalize()}"
             else:
                 pago_str = "Pago combinado: " + ", ".join(
-                    f"{m.capitalize()}: {CURRENCY_SYMBOL}{v:.2f}"
+                    f"{m.capitalize()}: {app_config.CURRENCY_SYMBOL}{v:.2f}"
                     for m, v in metodos_pago
                 )
 
-            msg = f"Orden #{orden_guardada.numero}\nTotal: {CURRENCY_SYMBOL}{orden_guardada.total:.2f}\n"
+            msg = f"Orden #{orden_guardada.numero}\nTotal: {app_config.CURRENCY_SYMBOL}{orden_guardada.total:.2f}\n"
             msg += f"{pago_str}\n"
             msg += f"Cambio: {dlg.val_vuelto.text()}\n\nLa orden ha sido enviada a preparación."
 
@@ -409,10 +412,17 @@ class POSView(QWidget):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # Debounce: recargar grid solo al dejar de redimensionar
+        # Debounce: recargar el grid correcto solo al dejar de redimensionar
         if not hasattr(self, '_resize_timer'):
             self._resize_timer = QTimer(self)
             self._resize_timer.setSingleShot(True)
             self._resize_timer.setInterval(200)
-            self._resize_timer.timeout.connect(self._load_products)
+            self._resize_timer.timeout.connect(self._on_resize_debounced)
         self._resize_timer.start()
+
+    def _on_resize_debounced(self):
+        """Recarga la vista activa (combos o productos) al terminar de redimensionar."""
+        if self._current_category == self._COMBO_KEY:
+            self._load_combos()
+        else:
+            self._load_products()

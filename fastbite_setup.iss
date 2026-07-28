@@ -24,6 +24,7 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile=assets\FastBite.ico
 ; No necesita privilegios de administrador si se instala en AppData
 PrivilegesRequiredOverridesAllowed=dialog
 

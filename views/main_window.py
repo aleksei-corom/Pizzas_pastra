@@ -133,17 +133,11 @@ class MainWindow(QMainWindow):
         self._clock_label.setText(now.strftime("🕐 %H:%M:%S  •  %d/%m/%Y"))
 
     def _update_printer_status(self):
-        """Actualiza el indicador de estado de la impresora en la barra de estado.
-
-        Lee la impresora configurada desde la preferencia del usuario (sesión)
-        o desde la configuración global de la DB, verifica conectividad vía
-        win32print, y muestra un indicador 🟢 verde / 🔴 rojo.
-        """
+        """Actualiza el indicador de estado de la impresora en la barra de estado."""
         try:
-            from database.db_manager import DatabaseManager
+            from database.config_service import ConfigService
             from utils.session import Session
 
-            # 1. Preferencia del usuario en sesión
             printer_name = None
             try:
                 session = Session.get()
@@ -151,15 +145,13 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
-            # 2. Fallback: configuración global de la DB
             if not printer_name:
                 try:
-                    db = DatabaseManager()
-                    printer_name = db.get_config("printer_name")
+                    cfg_svc = ConfigService()
+                    printer_name = cfg_svc.get_config("printer_name")
                 except Exception:
                     pass
 
-            # 3. Fallback: impresora predeterminada de Windows
             if not printer_name:
                 printer_name = get_default_printer() or ""
 
@@ -167,16 +159,17 @@ class MainWindow(QMainWindow):
                 online = check_printer_status(printer_name)
                 if online:
                     self._printer_status.setText(f"🖨️  🟢 {printer_name}")
-                    self._printer_status.setStyleSheet("color: #34d399;")  # verde
+                    self._printer_status.setStyleSheet("color: #34d399;")
                 else:
                     self._printer_status.setText(f"🖨️  🔴 {printer_name}")
-                    self._printer_status.setStyleSheet("color: #f87171;")  # rojo
+                    self._printer_status.setStyleSheet("color: #f87171;")
             else:
                 self._printer_status.setText("🖨️  ⚫ Sin impresora")
-                self._printer_status.setStyleSheet("color: #6b7280;")  # gris
+                self._printer_status.setStyleSheet("color: #6b7280;")
         except Exception:
             self._printer_status.setText("🖨️  ⚫ Error")
             self._printer_status.setStyleSheet("color: #f87171;")
+
 
     def _on_logout(self):
         """Maneja solicitud de cierre de sesión."""

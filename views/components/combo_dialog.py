@@ -8,19 +8,22 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from database.db_manager import DatabaseManager
+from database.producto_service import ProductoService
 from database.models import Combo, ComboItem, Producto
-from config import CURRENCY_SYMBOL
+import config as app_config
 from views.components import ModernMessageBox
 
 
 class ComboDialog(QDialog):
     """Diálogo para crear o editar un combo con sus productos."""
 
-    def __init__(self, parent=None, combo: Combo = None, db: DatabaseManager = None):
+    def __init__(self, parent=None, combo: Combo = None, db=None):
         super().__init__(parent)
         self.combo = combo
-        self.db = db or DatabaseManager()
+        if isinstance(db, ProductoService):
+            self.prod_svc = db
+        else:
+            self.prod_svc = ProductoService()
         self._productos_cache: list[Producto] = []
         self._items_temp: list[ComboItem] = []
         self.setWindowTitle("Editar Combo" if combo else "Nuevo Combo")
@@ -97,8 +100,8 @@ class ComboDialog(QDialog):
         lbl_precio.setProperty("class", "caption")
         price_col.addWidget(lbl_precio)
         self._precio_total = QDoubleSpinBox()
-        self._precio_total.setPrefix(f"{CURRENCY_SYMBOL} ")
-        self._precio_total.setRange(0.01, 9999.99)
+        self._precio_total.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
+        self._precio_total.setRange(0.01, 9999999.99)
         self._precio_total.setDecimals(2)
         self._precio_total.setValue(15.00)
         self._precio_total.setFixedHeight(36)
@@ -113,7 +116,7 @@ class ComboDialog(QDialog):
         lbl_ahorro = QLabel("Ahorro:")
         lbl_ahorro.setProperty("class", "caption")
         savings_row.addWidget(lbl_ahorro)
-        self._ahorro_lbl = QLabel(f"{CURRENCY_SYMBOL}0.00")
+        self._ahorro_lbl = QLabel(f"{app_config.CURRENCY_SYMBOL}0.00")
         self._ahorro_lbl.setProperty("class", "badge-success")
         savings_row.addWidget(self._ahorro_lbl)
         self._suma_lbl = QLabel("(Suma individual: $0.00)")
@@ -206,11 +209,11 @@ class ComboDialog(QDialog):
 
     def _load_productos(self):
         """Carga productos disponibles en el combo."""
-        self._productos_cache = self.db.get_productos(solo_disponibles=True)
+        self._productos_cache = self.prod_svc.get_productos(solo_disponibles=True)
         self._prod_combo.clear()
         for p in self._productos_cache:
             self._prod_combo.addItem(
-                f"{p.icono} {p.nombre} — {CURRENCY_SYMBOL}{p.precio:.2f}",
+                f"{p.icono} {p.nombre} — {app_config.CURRENCY_SYMBOL}{p.precio:.2f}",
                 p.id
             )
 
@@ -250,11 +253,11 @@ class ComboDialog(QDialog):
             icono = prod.icono + " " if prod else ""
             self._items_table.setItem(i, 0, QTableWidgetItem(f"{icono}{item.producto_nombre}"))
             self._items_table.setItem(i, 1,
-                QTableWidgetItem(f"{CURRENCY_SYMBOL}{item.precio_individual:.2f}"))
+                QTableWidgetItem(f"{app_config.CURRENCY_SYMBOL}{item.precio_individual:.2f}"))
             self._items_table.setItem(i, 2, QTableWidgetItem(str(item.cantidad)))
             subtotal = item.cantidad * item.precio_individual
             self._items_table.setItem(i, 3,
-                QTableWidgetItem(f"{CURRENCY_SYMBOL}{subtotal:.2f}"))
+                QTableWidgetItem(f"{app_config.CURRENCY_SYMBOL}{subtotal:.2f}"))
 
             btn_del = QPushButton("🗑️")
             btn_del.setFixedSize(32, 32)
@@ -275,15 +278,14 @@ class ComboDialog(QDialog):
         )
         precio_combo = self._precio_total.value()
         ahorro = round(max(0, suma_individual - precio_combo), 2)
-
-        self._suma_lbl.setText(f"(Suma individual: {CURRENCY_SYMBOL}{suma_individual:.2f})")
+        self._suma_lbl.setText(f"(Suma individual: {app_config.CURRENCY_SYMBOL}{suma_individual:.2f})")
         if ahorro > 0:
-            self._ahorro_lbl.setText(f"{CURRENCY_SYMBOL}{ahorro:.2f} de ahorro 🎉")
+            self._ahorro_lbl.setText(f"{app_config.CURRENCY_SYMBOL}{ahorro:.2f} de ahorro 🎉")
             self._ahorro_lbl.setProperty("class", "badge-success")
             self._ahorro_lbl.style().unpolish(self._ahorro_lbl)
             self._ahorro_lbl.style().polish(self._ahorro_lbl)
         else:
-            self._ahorro_lbl.setText(f"{CURRENCY_SYMBOL}0.00")
+            self._ahorro_lbl.setText(f"{app_config.CURRENCY_SYMBOL}0.00")
             self._ahorro_lbl.setProperty("class", "badge-info")
             self._ahorro_lbl.style().unpolish(self._ahorro_lbl)
             self._ahorro_lbl.style().polish(self._ahorro_lbl)

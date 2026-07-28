@@ -7,8 +7,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
+from decimal import Decimal, ROUND_DOWN
 
-from config import CURRENCY_SYMBOL
+import config as app_config
 
 
 # ─── Métodos de pago disponibles ───
@@ -46,7 +47,7 @@ class PaymentMethodRow(QFrame):
         layout.addWidget(lbl)
 
         self.spin = QDoubleSpinBox()
-        self.spin.setPrefix(f"{CURRENCY_SYMBOL} ")
+        self.spin.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
         self.spin.setRange(0.0, 999999.0)
         self.spin.setDecimals(2)
         self.spin.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
@@ -175,7 +176,7 @@ class PaymentDialog(QDialog):
         lbl_total.setProperty("class", "subtitle")
         total_inner.addWidget(lbl_total)
 
-        self._val_total = QLabel(f"{CURRENCY_SYMBOL}{self.total:.2f}")
+        self._val_total = QLabel(f"{app_config.CURRENCY_SYMBOL}{self.total:.2f}")
         self._val_total.setProperty("class", "title")
         self._val_total.setObjectName("payment-total-value")
         total_inner.addWidget(self._val_total, alignment=Qt.AlignmentFlag.AlignRight)
@@ -234,7 +235,7 @@ class PaymentDialog(QDialog):
         self._simple_method_buttons["efectivo"].setChecked(True)
 
         self._simple_monto = QDoubleSpinBox()
-        self._simple_monto.setPrefix(f"{CURRENCY_SYMBOL} ")
+        self._simple_monto.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
         self._simple_monto.setRange(0.0, 999999.0)
         self._simple_monto.setDecimals(2)
         self._simple_monto.setValue(self.total)
@@ -250,7 +251,7 @@ class PaymentDialog(QDialog):
         lbl_vs = QLabel("Vuelto:")
         lbl_vs.setProperty("class", "subtitle")
         vuelto_simple.addWidget(lbl_vs)
-        self._val_vuelto_simple = QLabel(f"{CURRENCY_SYMBOL}0.00")
+        self._val_vuelto_simple = QLabel(f"{app_config.CURRENCY_SYMBOL}0.00")
         self._val_vuelto_simple.setProperty("class", "title")
         self._val_vuelto_simple.setObjectName("payment-vuelto-success")
         vuelto_simple.addWidget(self._val_vuelto_simple, alignment=Qt.AlignmentFlag.AlignRight)
@@ -284,7 +285,7 @@ class PaymentDialog(QDialog):
         pc_layout.addWidget(self._progress_fill)
         tc_layout.addWidget(progress_container)
 
-        self._remaining_lbl = QLabel(f"Faltan {CURRENCY_SYMBOL}{self.total:.2f}")
+        self._remaining_lbl = QLabel(f"Faltan {app_config.CURRENCY_SYMBOL}{self.total:.2f}")
         self._remaining_lbl.setProperty("class", "caption")
         self._remaining_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tc_layout.addWidget(self._remaining_lbl)
@@ -302,7 +303,7 @@ class PaymentDialog(QDialog):
         lbl_tc = QLabel("Total Cubierto:")
         lbl_tc.setProperty("class", "bold")
         total_cubierto.addWidget(lbl_tc)
-        self._val_cubierto = QLabel(f"{CURRENCY_SYMBOL}0.00")
+        self._val_cubierto = QLabel(f"{app_config.CURRENCY_SYMBOL}0.00")
         self._val_cubierto.setProperty("class", "subtitle")
         total_cubierto.addWidget(self._val_cubierto, alignment=Qt.AlignmentFlag.AlignRight)
         tc_layout.addLayout(total_cubierto)
@@ -417,7 +418,7 @@ class PaymentDialog(QDialog):
     def _recalcular_simple(self):
         recibido = self._simple_monto.value()
         vuelto = max(0, recibido - self.total)
-        self._val_vuelto_simple.setText(f"{CURRENCY_SYMBOL}{vuelto:.2f}")
+        self._val_vuelto_simple.setText(f"{app_config.CURRENCY_SYMBOL}{vuelto:.2f}")
         self._val_vuelto_simple.setStyleSheet(
             "color: #34d399;" if recibido >= self.total else "color: #f87171;"
         )
@@ -459,15 +460,15 @@ class PaymentDialog(QDialog):
             f"background-color: {color}; border-radius: 6px;"
         )
 
-        self._val_cubierto.setText(f"{CURRENCY_SYMBOL}{total_asignado:.2f}")
+        self._val_cubierto.setText(f"{app_config.CURRENCY_SYMBOL}{total_asignado:.2f}")
 
         if restante > 0.005:
-            self._remaining_lbl.setText(f"❌  Faltan {CURRENCY_SYMBOL}{restante:.2f}")
+            self._remaining_lbl.setText(f"❌  Faltan {app_config.CURRENCY_SYMBOL}{restante:.2f}")
             self._remaining_lbl.setStyleSheet("color: #f87171;")
             self.btn_confirm.setEnabled(False)
         else:
             excedente = abs(restante)
-            cambio_text = f"  (vuelto: {CURRENCY_SYMBOL}{excedente:.2f})" if excedente > 0.005 else ""
+            cambio_text = f"  (vuelto: {app_config.CURRENCY_SYMBOL}{excedente:.2f})" if excedente > 0.005 else ""
             self._remaining_lbl.setText(f"✅  Cubierto{cambio_text}")
             self._remaining_lbl.setStyleSheet("color: #34d399;")
             self.btn_confirm.setEnabled(True)
@@ -570,8 +571,9 @@ class PaymentDialog(QDialog):
 
                     # 2. Fallback: configuración global de la DB
                     if not restored:
-                        db = DatabaseManager()
-                        cfg_printer = db.get_config("printer_name")
+                        from database.config_service import ConfigService
+                        cfg_svc = ConfigService()
+                        cfg_printer = cfg_svc.get_config("printer_name")
                         if cfg_printer:
                             for i in range(self._printer_combo.count()):
                                 if self._printer_combo.itemData(i) == cfg_printer:
@@ -659,19 +661,25 @@ class PaymentDialog(QDialog):
 
     @staticmethod
     def _calcular_desglose(monto):
-        """Calcula cómo dar el vuelto en billetes y monedas."""
+        """Calcula cómo dar el vuelto en billetes y monedas con aritmética exacta."""
         partes = []
-        restante = round(monto, 2)
+        restante = Decimal(str(round(monto, 2)))
         for valor, tipo in DENOMINATIONS:
-            if restante >= valor - 0.001:
-                cantidad = int(restante / valor)
-                restante = round(restante - cantidad * valor, 2)
+            val_d = Decimal(str(valor))
+            if restante >= val_d - Decimal("0.001"):
+                cantidad = int(restante / val_d)
+                restante = (restante - Decimal(str(cantidad)) * val_d).quantize(
+                    Decimal("0.01"), rounding=ROUND_DOWN
+                )
                 if cantidad > 0:
                     icono = "💵" if tipo == "billete" else "🪙"
-                    label = "billete" if cantidad == 1 else "billetes" if tipo == "billete" else "moneda" if cantidad == 1 else "monedas"
-                    partes.append(f"{icono} {cantidad} {label} de {CURRENCY_SYMBOL}{valor:.2f}")
-                if restante <= 0:
-                    break
+                    if tipo == "billete":
+                        label = "billete" if cantidad == 1 else "billetes"
+                    else:
+                        label = "moneda" if cantidad == 1 else "monedas"
+                    partes.append(f"{icono} {cantidad} {label} de {app_config.CURRENCY_SYMBOL}{valor:.2f}")
+            if restante <= Decimal("0"):
+                break
         return " ".join(partes) if partes else "Vuelto exacto"
 
     def resizeEvent(self, event):

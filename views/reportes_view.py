@@ -8,8 +8,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from datetime import datetime, timedelta
 
-from database.db_manager import DatabaseManager
-from config import CURRENCY_SYMBOL
+from database.orden_service import OrdenService
+from database.producto_service import ProductoService
+import config as app_config
 from views.layouts import create_page_header
 
 
@@ -18,7 +19,8 @@ class ReportesView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.orden_svc = OrdenService()
+        self.prod_svc = ProductoService()
         self._periodo = 7
         self._build_ui()
         self.cargar_datos()
@@ -150,29 +152,29 @@ class ReportesView(QWidget):
     def cargar_datos(self):
         try:
             # Ventas por día
-            ventas = self.db.get_ventas_por_periodo(self._periodo)
+            ventas = self.orden_svc.get_ventas_por_periodo(self._periodo)
             total_ventas = sum(d.get("ventas", 0) for d in ventas)
             total_ordenes = sum(d.get("ordenes", 0) for d in ventas)
             ticket_prom = total_ventas / total_ordenes if total_ordenes else 0
 
-            self._update_metric(self._card_total_ventas, f"{CURRENCY_SYMBOL}{total_ventas:.2f}")
+            self._update_metric(self._card_total_ventas, f"{app_config.CURRENCY_SYMBOL}{total_ventas:.2f}")
             self._update_metric(self._card_total_ordenes, str(total_ordenes))
-            self._update_metric(self._card_ticket_prom, f"{CURRENCY_SYMBOL}{ticket_prom:.2f}")
+            self._update_metric(self._card_ticket_prom, f"{app_config.CURRENCY_SYMBOL}{ticket_prom:.2f}")
 
             # Tabla ventas por día
             self._daily_table.setRowCount(len(ventas))
             for i, d in enumerate(ventas):
                 self._daily_table.setItem(i, 0, QTableWidgetItem(d.get("fecha", "")))
                 self._daily_table.setItem(i, 1, QTableWidgetItem(str(d.get("ordenes", 0))))
-                self._daily_table.setItem(i, 2, QTableWidgetItem(f"{CURRENCY_SYMBOL}{d.get('ventas', 0):.2f}"))
+                self._daily_table.setItem(i, 2, QTableWidgetItem(f"{app_config.CURRENCY_SYMBOL}{d.get('ventas', 0):.2f}"))
 
             # Top productos
-            top = self.db.get_productos_populares(limit=10)
+            top = self.prod_svc.get_productos_populares(limit=10)
             self._top_table.setRowCount(len(top))
             for i, p in enumerate(top):
                 self._top_table.setItem(i, 0, QTableWidgetItem(p.get("producto_nombre", "")))
                 self._top_table.setItem(i, 1, QTableWidgetItem(str(int(p.get("total_cantidad", 0)))))
-                self._top_table.setItem(i, 2, QTableWidgetItem(f"{CURRENCY_SYMBOL}{p.get('total_ventas', 0):.2f}"))
+                self._top_table.setItem(i, 2, QTableWidgetItem(f"{app_config.CURRENCY_SYMBOL}{p.get('total_ventas', 0):.2f}"))
 
             if top:
                 self._update_metric(self._card_producto_top, top[0].get("producto_nombre", "-"))

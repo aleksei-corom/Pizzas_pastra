@@ -7,9 +7,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation, QEasingCurve
 try:
-    from PySide6.QtGui import QGraphicsOpacityEffect
-except ImportError:
     from PySide6.QtWidgets import QGraphicsOpacityEffect
+except ImportError:
+    from PySide6.QtGui import QGraphicsOpacityEffect
 
 import config as app_config
 from config import ORDER_TYPES
@@ -243,7 +243,7 @@ class OrderPanel(QFrame):
         costo_row.addWidget(costo_lbl)
         self._dl_costo = QDoubleSpinBox()
         self._dl_costo.setPrefix(f"{app_config.CURRENCY_SYMBOL} ")
-        self._dl_costo.setRange(0.0, 99.99)
+        self._dl_costo.setRange(0.0, 999999.99)
         self._dl_costo.setDecimals(2)
         self._dl_costo.setValue(2.00)
         self._dl_costo.setFixedHeight(32)
@@ -353,8 +353,11 @@ class OrderPanel(QFrame):
 
     def add_item(self, orden_item):
         """Agrega un item a la orden con feedback visual."""
+        # Agregar como nuevo ítem solo si no hay otro con mismo producto Y mismo precio
+        # (esto permite tener variantes distintas del mismo producto en la misma orden)
         for existing in self.items:
-            if existing.producto_id == orden_item.producto_id:
+            if (existing.producto_id == orden_item.producto_id and
+                    existing.precio_unitario == orden_item.precio_unitario):
                 existing.cantidad += 1
                 self._rebuild_items_ui()
                 self._update_totals()
@@ -380,10 +383,21 @@ class OrderPanel(QFrame):
             is_new = animate_new and i == len(self.items) - 1
             widget = OrderItemWidget(item, animate=is_new)
             widget.quantity_changed.connect(self._update_totals)
-            widget.removed.connect(lambda idx=i: self._remove_item(idx))
+            # Pasar referencia directa al objeto para evitar bugs con índices stale
+            widget.removed.connect(lambda checked=False, it=item: self._remove_item_by_ref(it))
             self._items_layout.insertWidget(i + 1, widget)
 
+    def _remove_item_by_ref(self, item):
+        """Elimina un ítem usando referencia directa al objeto (evita bugs con índices)."""
+        if item in self.items:
+            removed_name = item.producto_nombre
+            self.items.remove(item)
+            self._rebuild_items_ui()
+            self._update_totals()
+            self.show_toast(f"✕ {removed_name} eliminado", "warning")
+
     def _remove_item(self, index):
+        """Elimina un ítem por índice (mantenido por compatibilidad)."""
         if 0 <= index < len(self.items):
             removed_name = self.items[index].producto_nombre
             self.items.pop(index)
@@ -415,6 +429,17 @@ class OrderPanel(QFrame):
         self._btn_confirm.setEnabled(len(self.items) > 0)
 
     def _confirm_order(self):
+        # ─── Validar campos obligatorios de delivery ───
+        if self.tipo_combo.currentData() == "delivery":
+            if not self._dl_direccion.text().strip():
+                self.show_toast("⚠️  Ingresa la dirección de entrega", "warning")
+                self._dl_direccion.setFocus()
+                return
+            if not self._dl_telefono.text().strip():
+                self.show_toast("⚠️  Ingresa el teléfono de contacto", "warning")
+                self._dl_telefono.setFocus()
+                return
+
         subtotal = sum(item.subtotal for item in self.items)
         delivery = self._get_delivery_cost()
         tax = round(subtotal * app_config.TAX_RATE, 2)

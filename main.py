@@ -8,11 +8,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIcon
 
 from utils.app_logging import setup_logging, install_exception_hook
 from utils.session import Session
 from database.db_manager import DatabaseManager
+from database.config_service import ConfigService
+from database.auth_service import AuthService
 from database.seed_data import seed_database
 
 
@@ -23,19 +25,33 @@ def main():
     install_exception_hook(logger)
     logger.info("Iniciando FastBite POS...")
 
-    # Ejecutar respaldo automático
-    from utils.backup_manager import run_daily_backup
-    run_daily_backup()
-
     # Inicializar DB y seed de datos base (categorías, productos)
     db = DatabaseManager()
     db.init_db()
     seed_database()
 
+    # Ejecutar respaldo automático DESPUÉS de init_db (garantiza DB válida antes de copiarla)
+    from utils.backup_manager import run_daily_backup
+    run_daily_backup()
+
+    # Establecer ID de modelo de usuario para que Windows muestre el icono propio en la barra de tareas
+    if sys.platform == "win32":
+        import ctypes
+        try:
+            myappid = "fastbite.pos.v1"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+
     # Crear aplicación Qt
     app = QApplication(sys.argv)
     app.setApplicationName("FastBite POS")
     app.setOrganizationName("FastBitePOS")
+
+    # Establecer icono global
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "FastBite.ico")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
 
     # Fuente global
     font = QFont("Segoe UI", 13)
@@ -46,7 +62,8 @@ def main():
     _load_config_from_db(db)
 
     # ─── Primera ejecución: Setup ───
-    if not db.hay_usuarios():
+    _auth_check = AuthService(db)
+    if not _auth_check.hay_usuarios():
         _run_first_setup(db, logger)
 
     session = Session.get()
@@ -93,6 +110,7 @@ def _run_first_setup(db: DatabaseManager, logger):
        muestra el SetupWizard interactivo como respaldo.
     """
     import configparser
+    from datetime import datetime as _dt
 
     # Buscar setup_init.ini junto al ejecutable (en producción) o en el dir del proyecto (dev)
     if getattr(sys, "frozen", False):
@@ -118,11 +136,25 @@ def _run_first_setup(db: DatabaseManager, logger):
             logger.warning("setup_init.ini no tiene contraseña. Abriendo SetupWizard como respaldo.")
             _show_setup_wizard(db, logger)
         else:
-            # Poblar la DB con los datos del instalador
+            # Poblar la DB de forma ATÓMICA con una sola transacción
             try:
-                db.set_config("business_name", business_name)
-                db.crear_usuario(admin_username, admin_password, nombre_completo="Administrador", rol="admin")
-                logger.info(f"Setup desde INI completado: negocio='{business_name}', admin='{admin_username}'")
+                salt = AuthService._generar_salt()
+                pw_hash = AuthService._hash_password(admin_password, salt)
+                ahora = _dt.now().isoformat()
+
+                with db.conn:  # context manager: commit en éxito, rollback en excepción
+                    db.conn.execute(
+                        "INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)",
+                        ("business_name", business_name)
+                    )
+                    db.conn.execute(
+                        "INSERT INTO usuarios (username, password_hash, salt, "
+                        "nombre_completo, rol, activo, fecha_creacion) VALUES (?, ?, ?, ?, ?, 1, ?)",
+                        (admin_username, pw_hash, salt, "Administrador", "admin", ahora)
+                    )
+                logger.info(
+                    f"Setup desde INI completado: negocio='{business_name}', admin='{admin_username}'"
+                )
             except Exception as e:
                 logger.error(f"Error al poblar DB desde INI: {e}. Abriendo SetupWizard como respaldo.")
                 _show_setup_wizard(db, logger)
@@ -153,7 +185,8 @@ def _load_config_from_db(db: DatabaseManager):
     """Carga configuración de la DB y actualiza los globals de config.py."""
     import config as app_config
 
-    configs = db.get_all_configs()
+    cfg_svc = ConfigService(db)
+    configs = cfg_svc.get_all_configs()
     if not configs:
         return
 
@@ -163,6 +196,7 @@ def _load_config_from_db(db: DatabaseManager):
         "business_phone": ("BUSINESS_PHONE", str),
         "business_address": ("BUSINESS_ADDRESS", str),
         "currency_symbol": ("CURRENCY_SYMBOL", str),
+        "currency_code": ("CURRENCY_CODE", str),
         "tax_rate": ("TAX_RATE", float),
     }
     for db_key, (attr, cast) in mapping.items():

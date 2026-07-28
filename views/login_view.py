@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
 from PySide6.QtGui import QFont
 
-from database.db_manager import DatabaseManager
+from database.auth_service import AuthService
 import config as app_config
 
 
@@ -16,7 +16,7 @@ class LoginView(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.auth_svc = AuthService()
         self._logged_user = None
         self.setWindowTitle(f"🍕 {app_config.APP_NAME} — Iniciar Sesión")
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
@@ -168,7 +168,7 @@ class LoginView(QDialog):
             self._show_error("Ingresa usuario y contraseña")
             return
 
-        user = self.db.verificar_password(username, password)
+        user = self.auth_svc.verificar_password(username, password)
         if user is None:
             self._show_error("Usuario o contraseña incorrectos")
             self._password.selectAll()

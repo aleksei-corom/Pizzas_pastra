@@ -6,8 +6,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from database.db_manager import DatabaseManager
-from config import CURRENCY_SYMBOL
+from database.producto_service import ProductoService
+import config as app_config
 from views.components import ModernMessageBox
 from views.layouts import create_page_header
 
@@ -18,7 +18,7 @@ class VariantDialog(QDialog):
     def __init__(self, producto, parent=None):
         super().__init__(parent)
         self.producto = producto
-        self.db = DatabaseManager()
+        self.prod_svc = ProductoService()
         self.setMinimumWidth(440)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -53,14 +53,14 @@ class VariantDialog(QDialog):
         # Precio base
         base_layout = QHBoxLayout()
         base_layout.addWidget(QLabel("Precio base:"))
-        self._base_price_lbl = QLabel(f"{CURRENCY_SYMBOL}{self.producto.precio:.2f}")
+        self._base_price_lbl = QLabel(f"{app_config.CURRENCY_SYMBOL}{self.producto.precio:.2f}")
         self._base_price_lbl.setProperty("class", "badge-info")
         base_layout.addWidget(self._base_price_lbl)
         base_layout.addStretch()
         layout.addLayout(base_layout)
 
         # ─── Variantes (tamaños) ───
-        variantes = self.db.get_variantes(self.producto.id)
+        variantes = self.prod_svc.get_variantes(self.producto.id)
         if variantes:
             sep1 = QFrame()
             sep1.setFixedHeight(1)
@@ -76,7 +76,7 @@ class VariantDialog(QDialog):
             var_layout.setSpacing(8)
 
             # Opción: tamaño base (sin variante)
-            btn_base = QPushButton(f"Base  ({CURRENCY_SYMBOL}{self.producto.precio:.2f})")
+            btn_base = QPushButton(f"Base  ({app_config.CURRENCY_SYMBOL}{self.producto.precio:.2f})")
             btn_base.setCheckable(True)
             btn_base.setChecked(True)
             btn_base.setProperty("class", "variant-btn")
@@ -87,7 +87,7 @@ class VariantDialog(QDialog):
 
             for v in variantes:
                 precio_total = self.producto.precio + v.precio_adicional
-                btn = QPushButton(f"{v.nombre}  (+{CURRENCY_SYMBOL}{v.precio_adicional:.2f})")
+                btn = QPushButton(f"{v.nombre}  (+{app_config.CURRENCY_SYMBOL}{v.precio_adicional:.2f})")
                 btn.setCheckable(True)
                 btn.setProperty("class", "variant-btn")
                 btn.clicked.connect(lambda checked, var=v: self._select_variant(var))
@@ -99,7 +99,7 @@ class VariantDialog(QDialog):
             layout.addLayout(var_layout)
 
         # ─── Ingredientes adicionales ───
-        ingredientes = self.db.get_ingredientes(self.producto.id, solo_activos=True)
+        ingredientes = self.prod_svc.get_ingredientes(self.producto.id, solo_activos=True)
         if ingredientes:
             sep2 = QFrame()
             sep2.setFixedHeight(1)
@@ -123,7 +123,7 @@ class VariantDialog(QDialog):
             self._ingredient_checks = {}
             for ing in ingredientes:
                 cb = QCheckBox(
-                    f"{ing.nombre}  (+{CURRENCY_SYMBOL}{ing.precio_adicional:.2f})"
+                    f"{ing.nombre}  (+{app_config.CURRENCY_SYMBOL}{ing.precio_adicional:.2f})"
                 )
                 cb.setProperty("class", "caption")
                 cb.toggled.connect(self._update_total)
@@ -141,7 +141,7 @@ class VariantDialog(QDialog):
 
         total_row = QHBoxLayout()
         total_row.addWidget(QLabel("Total del producto:"), 1)
-        self._total_lbl = QLabel(f"{CURRENCY_SYMBOL}{self.producto.precio:.2f}")
+        self._total_lbl = QLabel(f"{app_config.CURRENCY_SYMBOL}{self.producto.precio:.2f}")
         self._total_lbl.setProperty("class", "title")
         self._total_lbl.setObjectName("variant-total")
         total_row.addWidget(self._total_lbl)
@@ -180,7 +180,7 @@ class VariantDialog(QDialog):
         for cb, ing in self._ingredient_checks.values():
             if cb.isChecked():
                 precio += ing.precio_adicional
-        self._total_lbl.setText(f"{CURRENCY_SYMBOL}{precio:.2f}")
+        self._total_lbl.setText(f"{app_config.CURRENCY_SYMBOL}{precio:.2f}")
 
     @property
     def precio_final(self) -> float:

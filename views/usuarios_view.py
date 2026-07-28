@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from database.db_manager import DatabaseManager
+from database.auth_service import AuthService
 from views.components import ModernMessageBox
 from views.components.user_dialog import UserDialog
 from views.layouts import create_page_header
@@ -23,7 +23,7 @@ class UsuariosView(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.db = DatabaseManager()
+        self.auth_svc = AuthService()
         self._build_ui()
 
     def _build_ui(self):
@@ -62,7 +62,7 @@ class UsuariosView(QWidget):
 
     def cargar_datos(self):
         """Carga la lista de usuarios en la tabla."""
-        usuarios = self.db.get_usuarios()
+        usuarios = self.auth_svc.get_usuarios()
         self._table.setRowCount(len(usuarios))
 
         for i, u in enumerate(usuarios):
@@ -104,7 +104,7 @@ class UsuariosView(QWidget):
         dlg = UserDialog(self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             try:
-                self.db.crear_usuario(
+                self.auth_svc.crear_usuario(
                     username=dlg.usuario.username,
                     password=dlg.new_password,
                     nombre_completo=dlg.usuario.nombre_completo,
@@ -124,7 +124,7 @@ class UsuariosView(QWidget):
                     ModernMessageBox.error(self, "Error", str(e))
 
     def _editar_usuario(self, user_id):
-        usuarios = self.db.get_usuarios()
+        usuarios = self.auth_svc.get_usuarios()
         usuario = next((u for u in usuarios if u.id == user_id), None)
         if not usuario:
             return
@@ -132,9 +132,9 @@ class UsuariosView(QWidget):
         dlg = UserDialog(self, usuario=usuario)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             u = dlg.usuario
-            self.db.actualizar_usuario(u.id, u.nombre_completo, u.rol, u.activo)
+            self.auth_svc.actualizar_usuario(u.id, u.nombre_completo, u.rol, u.activo)
             if dlg.new_password:
-                self.db.cambiar_password(u.id, dlg.new_password)
+                self.auth_svc.cambiar_password(u.id, dlg.new_password)
             ModernMessageBox.success(
                 self, "Usuario Actualizado",
                 f"'{u.username}' actualizado correctamente."
@@ -144,9 +144,9 @@ class UsuariosView(QWidget):
     def _toggle_usuario(self, user_id, activo_actual):
         if activo_actual:
             # Verificar que no sea el último admin
-            usuario = next((u for u in self.db.get_usuarios() if u.id == user_id), None)
+            usuario = next((u for u in self.auth_svc.get_usuarios() if u.id == user_id), None)
             if usuario and usuario.rol == "admin":
-                if self.db.contar_admins_activos() <= 1:
+                if self.auth_svc.contar_admins_activos() <= 1:
                     ModernMessageBox.error(
                         self, "Operación No Permitida",
                         "No puedes desactivar al último administrador activo."
@@ -161,9 +161,9 @@ class UsuariosView(QWidget):
             if result != QDialog.DialogCode.Accepted:
                 return
 
-        usuario = next((u for u in self.db.get_usuarios() if u.id == user_id), None)
+        usuario = next((u for u in self.auth_svc.get_usuarios() if u.id == user_id), None)
         if usuario:
-            self.db.actualizar_usuario(
+            self.auth_svc.actualizar_usuario(
                 user_id, usuario.nombre_completo, usuario.rol, not activo_actual
             )
             self.cargar_datos()

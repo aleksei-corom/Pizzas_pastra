@@ -47,11 +47,13 @@ class Session:
         if not self._current_user:
             return
         try:
-            from database.db_manager import DatabaseManager
-            db = DatabaseManager()
-            prefs = db.get_all_user_preferences(self._current_user.id)
+            from database.config_service import ConfigService
+            cfg_svc = ConfigService()
+            prefs = cfg_svc.get_all_user_preferences(self._current_user.id)
             self._preferences = prefs
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error cargando preferencias: {e}")
             self._preferences = {}
 
     def _save_preference(self, key: str, value: str):
@@ -59,11 +61,12 @@ class Session:
         if not self._current_user:
             return
         try:
-            from database.db_manager import DatabaseManager
-            db = DatabaseManager()
-            db.set_user_preference(self._current_user.id, key, value)
-        except Exception:
-            pass
+            from database.config_service import ConfigService
+            cfg_svc = ConfigService()
+            cfg_svc.set_user_preference(self._current_user.id, key, value)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error guardando preferencia '{key}': {e}")
 
     def get_preference(self, key: str, default: str | None = None) -> str | None:
         """Obtiene una preferencia del usuario actual.

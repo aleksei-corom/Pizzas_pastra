@@ -9,6 +9,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
 
     steps:
       - name: Checkout
@@ -36,11 +40,12 @@ jobs:
             libxcb-xkb1 \
             xvfb
 
-      - name: Set up Python 3.12
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install Python dependencies
         run: |
@@ -50,6 +55,6 @@ jobs:
       - name: Run unit tests
         run: python run_tests.py
 
-      - name: Run smoke test (headless)
-        run: xvfb-run --auto-servernum python smoke_test.py
+      - name: Run smoke test completo (headless)
+        run: python smoke_test_completo.py --headless
         timeout-minutes: 2

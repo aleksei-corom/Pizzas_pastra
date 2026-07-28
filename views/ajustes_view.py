@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette, QColor
 
-from database.db_manager import DatabaseManager
+from database.config_service import ConfigService
 import config as app_config
 from views.components import ModernMessageBox
 from views.layouts import create_page_header, create_form_row
@@ -19,7 +19,7 @@ class AjustesView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.db = DatabaseManager()
+        self.cfg_svc = ConfigService()
         self._build_ui()
         self._load_settings()
 
@@ -82,9 +82,21 @@ class AjustesView(QWidget):
 
         row3 = QHBoxLayout()
         row3.setSpacing(16)
+
+        # Símbolo moneda (auto-actualizado según código)
         self._moneda = self._make_input()
         self._moneda.setMaximumWidth(80)
         row3.addLayout(create_form_row("Símbolo Moneda", self._moneda))
+
+        # Código de moneda (cambia automáticamente el símbolo)
+        self._codigo_moneda = QComboBox()
+        self._codigo_moneda.setObjectName("formComboBox")
+        self._codigo_moneda.setFixedHeight(36)
+        self._codigo_moneda.setMinimumWidth(200)
+        for code, info in app_config.CURRENCY_CODES.items():
+            self._codigo_moneda.addItem(f"{code} — {info['name']} ({info['symbol']})", code)
+        self._codigo_moneda.currentIndexChanged.connect(self._on_currency_code_changed)
+        row3.addLayout(create_form_row("Tipo de Moneda", self._codigo_moneda))
 
         self._tax = QDoubleSpinBox()
         self._tax.setObjectName("formSpinBox")
@@ -305,14 +317,26 @@ class AjustesView(QWidget):
                 "Verifica que la impresora esté encendida, conectada y configurada correctamente."
             )
 
+    def cargar_datos(self):
+        """Recarga los datos de configuración (alias público de _load_settings)."""
+        self._load_settings()
+
     def _load_settings(self):
         """Lee la configuración desde la BD y la muestra en los campos."""
-        settings = self.db.get_all_configs()
+        settings = self.cfg_svc.get_all_configs()
         self._nombre.setText(settings.get("business_name", app_config.BUSINESS_NAME))
         self._slogan.setText(settings.get("business_slogan", app_config.BUSINESS_SLOGAN))
         self._telefono.setText(settings.get("business_phone", app_config.BUSINESS_PHONE))
         self._direccion.setText(settings.get("business_address", app_config.BUSINESS_ADDRESS))
         self._moneda.setText(settings.get("currency_symbol", app_config.CURRENCY_SYMBOL))
+
+        # Cargar código de moneda
+        currency_code = settings.get("currency_code", app_config.CURRENCY_CODE)
+        for i in range(self._codigo_moneda.count()):
+            if self._codigo_moneda.itemData(i) == currency_code:
+                self._codigo_moneda.setCurrentIndex(i)
+                break
+
         tax = float(settings.get("tax_rate", app_config.TAX_RATE))
         self._tax.setValue(tax * 100)
 
@@ -346,6 +370,13 @@ class AjustesView(QWidget):
             settings.get("printer_save_pdf", "1") == "1"
         )
 
+    def _on_currency_code_changed(self):
+        """Actualiza el símbolo de moneda automáticamente al cambiar el código."""
+        code = self._codigo_moneda.currentData()
+        if code and code in app_config.CURRENCY_CODES:
+            symbol = app_config.CURRENCY_CODES[code]["symbol"]
+            self._moneda.setText(symbol)
+
     def _save(self):
         """Guarda la configuración en BD y actualiza las variables globales de config.py."""
         # Leer valores
@@ -354,6 +385,7 @@ class AjustesView(QWidget):
         telefono = self._telefono.text().strip()
         direccion = self._direccion.text().strip()
         moneda = self._moneda.text().strip() or "$"
+        codigo_moneda = self._codigo_moneda.currentData() or "USD"
         tax = self._tax.value() / 100.0
 
         # Printer settings
@@ -365,18 +397,19 @@ class AjustesView(QWidget):
         save_pdf = "1" if self._printer_pdf.isChecked() else "0"
 
         # Guardar en BD
-        self.db.set_config("business_name", nombre)
-        self.db.set_config("business_slogan", slogan)
-        self.db.set_config("business_phone", telefono)
-        self.db.set_config("business_address", direccion)
-        self.db.set_config("currency_symbol", moneda)
-        self.db.set_config("tax_rate", str(tax))
-        self.db.set_config("printer_name", printer_name)
-        self.db.set_config("printer_auto_cut", auto_cut)
-        self.db.set_config("printer_paper_width", pw)
-        self.db.set_config("printer_codepage", cp)
-        self.db.set_config("printer_print_qr", print_qr)
-        self.db.set_config("printer_save_pdf", save_pdf)
+        self.cfg_svc.set_config("business_name", nombre)
+        self.cfg_svc.set_config("business_slogan", slogan)
+        self.cfg_svc.set_config("business_phone", telefono)
+        self.cfg_svc.set_config("business_address", direccion)
+        self.cfg_svc.set_config("currency_symbol", moneda)
+        self.cfg_svc.set_config("currency_code", codigo_moneda)
+        self.cfg_svc.set_config("tax_rate", str(tax))
+        self.cfg_svc.set_config("printer_name", printer_name)
+        self.cfg_svc.set_config("printer_auto_cut", auto_cut)
+        self.cfg_svc.set_config("printer_paper_width", pw)
+        self.cfg_svc.set_config("printer_codepage", cp)
+        self.cfg_svc.set_config("printer_print_qr", print_qr)
+        self.cfg_svc.set_config("printer_save_pdf", save_pdf)
 
         # Actualizar variables globales (efecto inmediato)
         app_config.BUSINESS_NAME = nombre
@@ -384,6 +417,7 @@ class AjustesView(QWidget):
         app_config.BUSINESS_PHONE = telefono
         app_config.BUSINESS_ADDRESS = direccion
         app_config.CURRENCY_SYMBOL = moneda
+        app_config.CURRENCY_CODE = codigo_moneda
         app_config.TAX_RATE = tax
         app_config.PRINTER_NAME = printer_name
         app_config.PRINTER_AUTO_CUT = auto_cut == "1"
@@ -407,6 +441,7 @@ class AjustesView(QWidget):
             "business_phone": app_config.BUSINESS_PHONE,
             "business_address": app_config.BUSINESS_ADDRESS,
             "currency_symbol": app_config.CURRENCY_SYMBOL,
+            "currency_code": app_config.CURRENCY_CODE,
             "tax_rate": str(app_config.TAX_RATE),
             "printer_name": app_config.PRINTER_NAME,
             "printer_auto_cut": "1" if app_config.PRINTER_AUTO_CUT else "0",
@@ -416,7 +451,7 @@ class AjustesView(QWidget):
             "printer_save_pdf": "1" if app_config.PRINTER_SAVE_PDF else "0",
         }
         for clave, valor in defaults.items():
-            self.db.set_config(clave, valor)
+            self.cfg_svc.set_config(clave, valor)
         self._load_settings()
         
         # También actualizar variables globales
@@ -425,6 +460,7 @@ class AjustesView(QWidget):
         app_config.BUSINESS_PHONE = defaults["business_phone"]
         app_config.BUSINESS_ADDRESS = defaults["business_address"]
         app_config.CURRENCY_SYMBOL = defaults["currency_symbol"]
+        app_config.CURRENCY_CODE = defaults["currency_code"]
         app_config.TAX_RATE = float(defaults["tax_rate"])
         app_config.PRINTER_NAME = defaults["printer_name"]
         app_config.PRINTER_AUTO_CUT = defaults["printer_auto_cut"] == "1"
