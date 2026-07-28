@@ -1667,18 +1667,22 @@ class TestComboDialog(unittest.TestCase):
         from views.components.combo_dialog import ComboDialog
         self.dlg = ComboDialog(db=self.prod_svc)
         # Sin nombre y sin items, debe mostrar warning
-        with unittest.mock.patch.object(self.dlg, 'accept') as mock_accept:
-            self.dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.combo_dialog.ModernMessageBox.warning') as mock_warning:
+            with unittest.mock.patch.object(self.dlg, 'accept') as mock_accept:
+                self.dlg._save()
+                mock_accept.assert_not_called()
+                mock_warning.assert_called_once()
 
     def test_save_validates_items(self):
         """Guardar sin productos debe mostrar advertencia."""
         from views.components.combo_dialog import ComboDialog
         self.dlg = ComboDialog(db=self.prod_svc)
         self.dlg._nombre.setText("Combo Test")
-        with unittest.mock.patch.object(self.dlg, 'accept') as mock_accept:
-            self.dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.combo_dialog.ModernMessageBox.warning') as mock_warning:
+            with unittest.mock.patch.object(self.dlg, 'accept') as mock_accept:
+                self.dlg._save()
+                mock_accept.assert_not_called()
+                mock_warning.assert_called_once()
 
     def test_save_creates_combo(self):
         """Guardar con datos válidos debe crear el combo."""
@@ -1910,9 +1914,11 @@ class TestRepartidorDialog(unittest.TestCase):
         """Guardar sin nombre no debe llamar a accept."""
         from views.components.repartidor_dialog import RepartidorDialog
         dlg = RepartidorDialog()
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.repartidor_dialog.ModernMessageBox.warning') as mock_warning:
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
+                mock_warning.assert_called_once()
         dlg.deleteLater()
 
     def test_save_creates_repartidor(self):
@@ -1990,9 +1996,10 @@ class TestUserDialog(unittest.TestCase):
         """Guardar sin username no debe llamar a accept."""
         from views.components.user_dialog import UserDialog
         dlg = UserDialog()
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.user_dialog.ModernMessageBox.warning'):
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
         dlg.deleteLater()
 
     def test_save_validates_nombre(self):
@@ -2000,9 +2007,10 @@ class TestUserDialog(unittest.TestCase):
         from views.components.user_dialog import UserDialog
         dlg = UserDialog()
         dlg._username.setText("testuser")
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.user_dialog.ModernMessageBox.warning'):
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
         dlg.deleteLater()
 
     def test_save_validates_password_for_new_user(self):
@@ -2011,9 +2019,10 @@ class TestUserDialog(unittest.TestCase):
         dlg = UserDialog()
         dlg._username.setText("testuser")
         dlg._nombre.setText("Test User")
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.user_dialog.ModernMessageBox.warning'):
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
         dlg.deleteLater()
 
     def test_save_validates_password_length(self):
@@ -2024,9 +2033,10 @@ class TestUserDialog(unittest.TestCase):
         dlg._nombre.setText("Test User")
         dlg._password.setText("ab")
         dlg._password_confirm.setText("ab")
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.user_dialog.ModernMessageBox.warning'):
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
         dlg.deleteLater()
 
     def test_save_validates_password_match(self):
@@ -2037,9 +2047,10 @@ class TestUserDialog(unittest.TestCase):
         dlg._nombre.setText("Test User")
         dlg._password.setText("password123")
         dlg._password_confirm.setText("different")
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.components.user_dialog.ModernMessageBox.warning'):
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
         dlg.deleteLater()
 
     def test_save_creates_user(self):

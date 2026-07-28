@@ -785,9 +785,10 @@ class TestCategoryDialog(unittest.TestCase):
         dlg = CategoryDialog()
         dlg._nombre.setText("")
 
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.menu_view.ModernMessageBox.warning'):
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
         dlg.deleteLater()
 
     def test_save_edit_updates(self):
@@ -1031,7 +1032,9 @@ class TestVariantesDialogMenu(unittest.TestCase):
         """Agregar variante sin nombre no debe crear registro."""
         dlg = self._create_dlg()
         dlg._var_nombre.setText("")
-        dlg._agregar_variante()
+        
+        with unittest.mock.patch('views.menu_view.ModernMessageBox.warning'):
+            dlg._agregar_variante()
 
         self.assertEqual(dlg._table.rowCount(), 0)
 
@@ -1159,9 +1162,10 @@ class TestProductDialog(unittest.TestCase):
         dlg = ProductDialog(categorias=self.categorias)
         dlg._nombre.setText("")
 
-        with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
-            dlg._save()
-            mock_accept.assert_not_called()
+        with unittest.mock.patch('views.menu_view.ModernMessageBox.warning'):
+            with unittest.mock.patch.object(dlg, 'accept') as mock_accept:
+                dlg._save()
+                mock_accept.assert_not_called()
         dlg.deleteLater()
 
     def test_save_edit_updates_producto(self):
@@ -2745,6 +2749,8 @@ class TestMainWindow(unittest.TestCase):
                 self.view._timer.stop()
             if hasattr(self.view, '_printer_timer'):
                 self.view._printer_timer.stop()
+            if hasattr(self, 'session') and self.session:
+                self.session.logout()
             self.view.close()
             self.view.deleteLater()
         Session._instance = None
@@ -2969,6 +2975,8 @@ class TestMainWindowAdvanced(unittest.TestCase):
                 self.view._timer.stop()
             if hasattr(self.view, '_printer_timer'):
                 self.view._printer_timer.stop()
+            if hasattr(self, 'session') and self.session:
+                self.session.logout()
             self.view.close()
             self.view.deleteLater()
         Session._instance = None
@@ -3087,6 +3095,8 @@ class TestMainWindowAdvanced2(unittest.TestCase):
                 self.view._timer.stop()
             if hasattr(self.view, '_printer_timer'):
                 self.view._printer_timer.stop()
+            if hasattr(self, 'session') and self.session:
+                self.session.logout()
             self.view.close()
             self.view.deleteLater()
         Session._instance = None
@@ -3281,13 +3291,9 @@ class TestDeliveryViewAdvanced(unittest.TestCase):
         """_asignar_repartidor con disponibles no debe mostrar warning."""
         view = self._create_view()
 
-        # Mock QDialog para que el exec() retorne Rejected (simula cancelar)
+        # Mock QDialog.exec para que retorne Rejected (simula cancelar)
         # Esto evita la UI real pero prueba que no muestra warning
-        with unittest.mock.patch('views.delivery_view.QDialog') as MockQDialog:
-            mock_dlg = unittest.mock.MagicMock()
-            mock_dlg.exec.return_value = QDialog.DialogCode.Rejected
-            MockQDialog.return_value = mock_dlg
-
+        with unittest.mock.patch('PySide6.QtWidgets.QDialog.exec', return_value=QDialog.DialogCode.Rejected):
             with unittest.mock.patch('views.delivery_view.ModernMessageBox.warning') as mock_warning:
                 view._asignar_repartidor(self.orden_id, self.orden_num)
                 # Si hay disponibles, NO debe mostrar warning (aunque cancele)
@@ -3321,10 +3327,18 @@ class TestDeliveryViewAdvanced(unittest.TestCase):
         """cargar_datos() debe mostrar órdenes y repartidores."""
         view = self._create_view()
 
-        # Verificar que hay filas en la tabla de repartidores
-        self.assertGreaterEqual(view._reps_table.rowCount(), 1)
+        # Verificar que hay filas en el layout de repartidores (RepRow + stretch)
+        self.assertGreaterEqual(view._reps_layout.count(), 2)
         # Verificar nombre del repartidor
-        self.assertEqual(view._reps_table.item(0, 0).text(), "Juan")
+        from views.delivery_view import RepRow
+        first_row = None
+        for i in range(view._reps_layout.count()):
+            widget = view._reps_layout.itemAt(i).widget()
+            if isinstance(widget, RepRow):
+                first_row = widget
+                break
+        self.assertIsNotNone(first_row)
+        self.assertEqual(first_row.rep.nombre, "Juan")
 
     def test_vehiculo_icono_mapping(self):
         """El mapping VEHICULO_ICONO debe tener iconos para cada tipo."""
