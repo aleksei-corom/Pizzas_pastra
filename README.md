@@ -58,6 +58,16 @@ python run_tests.py
 
 *Las pruebas incluyen mocks para eludir la interacción visual con diálogos de interfaz, logrando que el test suite pueda ejecutarse en entornos Headless (como GitHub Actions).*
 
+## 💖 Apoya este Proyecto
+
+Si este sistema te es útil o te ha ayudado a gestionar tu negocio de manera eficiente, por favor considera apoyar su desarrollo. ¡Cualquier contribución es inmensamente agradecida!
+
+Puedes hacerlo a través de **GitHub Sponsors** usando el botón "Sponsor" en la parte superior del repositorio.
+
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia **MIT**. Consulta el archivo `LICENSE` para más detalles.
+Este proyecto está bajo la Licencia **GNU AGPLv3** (GNU Affero General Public License v3.0).
+
+Copyright (c) 2026 Alexis Corpas Romero - CORJAR Computers.
+
+Esta es una licencia *copyleft* fuerte que garantiza que el software y cualquier modificación del mismo (incluso si se ofrece como servicio a través de una red) permanezcan abiertos y libres. Consulta el archivo `LICENSE` para más detalles.
