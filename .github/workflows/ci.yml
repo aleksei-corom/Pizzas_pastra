@@ -53,8 +53,12 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run unit tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: xvfb-run -a python run_tests.py
 
       - name: Run smoke test completo (headless)
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: xvfb-run -a python smoke_test_completo.py --headless
         timeout-minutes: 2
