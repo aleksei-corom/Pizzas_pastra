@@ -47,6 +47,11 @@ FastBite POS es un completo sistema de Punto de Venta (Point of Sale) diseñado 
     ```
     *Nota: Si es la primera vez que inicias la aplicación, se mostrará un asistente (Setup Wizard) para crear la cuenta de administrador y configurar detalles iniciales del negocio.*
 
+## 📚 Manual de Usuario
+
+Puedes consultar la guía completa de uso organizada por roles (Cajero, Cocina/Despacho, Administrador) en el siguiente documento:
+* [Manual de Usuario - FastBite POS](docs/MANUAL_DE_USUARIO.md)
+
 ## 🧪 Pruebas (Testing)
 
 El proyecto cuenta con una robusta suite de pruebas unitarias creadas utilizando la librería estándar `unittest`. 
