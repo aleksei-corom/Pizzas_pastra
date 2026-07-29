@@ -46,6 +46,8 @@ La primera vez que ejecuta **FastBite POS**, la aplicación abrirá de forma aut
 ### 1.2. Inicio de Sesión y Autenticación
 FastBite POS cuenta con dos modalidades para iniciar sesión:
 
+![Pantalla de Login](images/pos_login.png)
+
 - **Ingreso por Credenciales**: Nombre de usuario y contraseña completa. Recomendado para administradores.
 - **Ingreso por PIN de Acceso Rápido**: El usuario selecciona su nombre en pantalla e ingresa un PIN numérico de 4 dígitos. Diseñado para agilizar la entrada de cajeros y personal operativo durante las horas pico.
 
@@ -67,6 +69,8 @@ Antes de procesar la primera venta del día, el cajero debe aperturar el turno:
 
 ### 2.2. Toma de Órdenes en el POS
 Para ingresar a la pantalla de ventas, seleccione **Punto de Venta (POS)**.
+
+![Pantalla de Ventas (POS)](images/pos_sales.png)
 
 1. **Selección de Tipo de Pedido**: En la barra superior, elija el tipo de orden:
    - **Para Comer Aquí**: Asigne opcionalmente un número de mesa o identificador.
@@ -139,6 +143,8 @@ En la sección **Órdenes**:
 ### 3.1. Pantalla de Cocina (Kitchen Display System - KDS)
 Diseñada para operarse en pantallas táctiles o monitores en el área de preparación/cocina.
 
+![Pantalla de Cocina (KDS)](images/pos_kitchen.png)
+
 - **Tablero en Tiempo Real**: Cada orden cobrada o enviada a cocina aparece en forma de tarjeta visual.
 - **Código de Colores por Antigüedad**:
   - 🟢 **Verde**: Pedido reciente (menos de 10 min).
@@ -164,6 +170,9 @@ Para el personal encargado de armar bolsas y entregar pedidos a repartidores:
 
 ### 4.1. Dashboard Principal
 El Administrador al iniciar sesión visualizará el **Dashboard de Control**:
+
+![Dashboard del Administrador](images/pos_dashboard.png)
+
 - Total de Ventas del Día.
 - Número de Órdenes Procesadas.
 - Promedio de Ticket de Venta.
