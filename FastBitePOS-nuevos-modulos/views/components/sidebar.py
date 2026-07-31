@@ -1,11 +1,11 @@
-"""Sidebar de navegación principal con soporte de roles — CON NUEVOS MÓDULOS.
+'Sidebar de navegación principal con soporte de roles — CON NUEVOS MÓDULOS.
 
 Reemplaza completamente a views/components/sidebar.py.
 
 Cambios vs original:
 - Se agregaron 3 items al menú: 💎 Clientes, 🧑‍🍳 Costos, 🧠 Asistente
 - Se movió 'Cocina' antes de Reportes para mejor agrupación lógica
-"""
+'
 
 from PySide6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget,

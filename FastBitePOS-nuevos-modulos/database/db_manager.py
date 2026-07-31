@@ -1,4 +1,4 @@
-"""Gestor de conexión SQLite singleton — maneja init, migración y conexión thread-safe.
+Gestor de conexión SQLite singleton — maneja init, migración y conexión thread-safe.
 
 CON NUEVAS MIGRACIONES para CRM, Costos y Asistente.
 
@@ -7,7 +7,7 @@ Reemplaza completamente a database/db_manager.py.
 Cambios vs original:
 - Nuevas tablas: clientes, cliente_puntos_mov, premios, recetas, receta_ingredientes
 - Migraciones idempotentes que se ejecutan en _migrate_db()
-"""
+'''
 
 import sqlite3
 import threading
