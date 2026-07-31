@@ -4,7 +4,7 @@ import os
 
 # ─── Información del Negocio ───
 APP_NAME = "FastBite POS"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 BUSINESS_NAME = "FastBite POS"
 BUSINESS_SLOGAN = "Gestión de Restaurantes y Comidas Rápidas"
 BUSINESS_PHONE = "+58 412-000-0000"

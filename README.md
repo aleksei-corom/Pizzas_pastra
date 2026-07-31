@@ -1,23 +1,31 @@
-# FastBite POS (anteriormente Pizzas Pastra) 🍕
+# FastBite POS (v1.1.0) 🍕
 
-FastBite POS es un completo sistema de Punto de Venta (Point of Sale) diseñado originalmente para pizzerías y adaptable a diversos restaurantes y negocios de comida rápida. Su diseño amigable e intuitivo está pensado para optimizar el flujo de trabajo, reducir tiempos de espera y mejorar la experiencia tanto de tus empleados como de tus clientes.
+FastBite POS es un completo sistema de Punto de Venta (Point of Sale), Gestión de Cocina (KDS), Fidelización de Clientes y Control Contable diseñado para restaurantes de comida rápida, pizzerías y establecimientos gastronómicos. Su diseño amigable e intuitivo optimiza el flujo de trabajo, reduce tiempos de espera y mejora la rentabilidad del negocio.
+
+---
 
 ## 🚀 Características Principales
 
-*   **Gestión de Órdenes y Entregas**: Soporte para tomar órdenes en mostrador o para envío (delivery). Interfaz dedicada (Kitchen Display System - KDS) para visualizar, priorizar y marcar las órdenes preparadas.
-*   **Gestión de Catálogo**: Administración visual y eficiente de productos, combos y variantes (por ej. tamaños de pizza, tipos de masa) y categorías.
-*   **Gestión de Usuarios y Roles**: Manejo de permisos para distintos roles (Admin, Cajero) y soporte seguro de autenticación local.
-*   **Gestión de Repartidores**: Control de estado de repartidores y asignación eficaz de entregas.
-*   **Reportes y Estadísticas**: Visualización de métricas esenciales (ventas del día, órdenes completadas) para ayudar en la toma de decisiones.
-*   **Impresión de Recibos**: Integración con impresoras térmicas (protocolo ESC/POS y compatibilidad local en Windows) para emitir tickets rápidamente.
-*   **Interfaz Moderna**: Interfaz gráfica construida con PySide6, utilizando estilos y widgets modernos con soporte de modo claro/oscuro (ajustable) e iconos representativos.
+*   **💎 CRM & Fidelización de Clientes (Novedad v1.1.0)**: Búsqueda rápida por teléfono durante la venta, acumulación automatizada de puntos por compras, historial de visitas y catálogo de premios canjeables.
+*   **🧑‍🍳 Analizador de Costos y Recetas (Novedad v1.1.0)**: Construcción de recetas con desglose de insumos, cálculo automatizado del costo real por porción, análisis de márgenes de ganancia y recomendaciones de precio.
+*   **🧠 Asistente Inteligente de Ventas (Novedad v1.1.0)**: Motor analítico 100% local que identifica horas pico, productos estrella, patrones de demanda y alertas de reposición de insumos sin depender de APIs externas.
+*   **Gestión de Órdenes y Delivery**: Soporte para comer en local, para llevar y servicio a domicilio. Pantalla dedicada de cocina (Kitchen Display System - KDS) con códigos de color según tiempo de espera.
+*   **Gestión de Catálogo y Combos**: Administración de categorías, productos, variantes (tamaños, bordes de queso), adicionales y paquetes promocionales (combos).
+*   **Seguridad y Control de Roles**: Autenticación rápida por PIN de 4 dígitos o credenciales completas para administradores, cajeros, cocineros y repartidores.
+*   **Arqueo de Caja y Contabilidad**: Control de aperturas/cierres de turno, registro de ingresos/egresos y reporte Z transparente (cuadre, sobrante o faltante).
+*   **Impresión Térmica de Recibos**: Emisión automática de tickets para clientes y comandas de cocina vía impresoras térmicas ESC/POS y compatibilidad local en Windows.
+*   **Interfaz Moderna en Modo Oscuro**: UI construida en PySide6 con componentes visuales adaptativos y estética minimalista.
+
+---
 
 ## 🛠️ Tecnologías
 
 *   **Lenguaje**: Python 3.10+
 *   **Interfaz Gráfica (GUI)**: PySide6 (Qt para Python)
-*   **Base de Datos**: SQLite (almacenamiento local, eficiente y sin configuración de servidor)
-*   **Impresión**: Integración con `win32print` para soporte de impresión en sistemas Windows y compatibilidad con ESC/POS.
+*   **Base de Datos**: SQLite (almacenamiento local thread-safe con migraciones automáticas)
+*   **Impresión**: Integración con `win32print` y comandos directos ESC/POS.
+
+---
 
 ## 📦 Instalación y Configuración Local
 
@@ -27,7 +35,7 @@ FastBite POS es un completo sistema de Punto de Venta (Point of Sale) diseñado 
     cd Pizzas_pastra
     ```
 
-2.  **Crea y activa un entorno virtual (Recomendado):**
+2.  **Crea y activa un entorno virtual:**
     ```bash
     python -m venv venv
     # En Windows:
@@ -45,34 +53,36 @@ FastBite POS es un completo sistema de Punto de Venta (Point of Sale) diseñado 
     ```bash
     python main.py
     ```
-    *Nota: Si es la primera vez que inicias la aplicación, se mostrará un asistente (Setup Wizard) para crear la cuenta de administrador y configurar detalles iniciales del negocio.*
+    *Nota: En el primer inicio se desplegará el Asistente de Configuración Inicial (Setup Wizard) para definir el nombre del negocio, moneda, tasa de impuesto y cuenta de administrador.*
+
+---
 
 ## 📚 Manual de Usuario
 
-Puedes consultar la guía completa de uso organizada por roles (Cajero, Cocina/Despacho, Administrador) en el siguiente documento:
-* [Manual de Usuario - FastBite POS](docs/MANUAL_DE_USUARIO.md)
+Consulta el manual de usuario ilustrado organizado por roles (Cajero, Cocinero, Repartidor, Administrador):
+* 📖 [Manual de Usuario - FastBite POS](docs/MANUAL_DE_USUARIO.md)
+
+---
 
 ## 🧪 Pruebas (Testing)
 
-El proyecto cuenta con una robusta suite de pruebas unitarias creadas utilizando la librería estándar `unittest`. 
+El proyecto cuenta con una amplia suite de más de 690 pruebas unitarias e integrales que cubren la capa de datos, lógica de negocio y componentes de interfaz.
 
-Para ejecutar los tests, simplemente corre en la consola:
+Para ejecutar los tests:
 ```bash
 python run_tests.py
 ```
 
-*Las pruebas incluyen mocks para eludir la interacción visual con diálogos de interfaz, logrando que el test suite pueda ejecutarse en entornos Headless (como GitHub Actions).*
+---
 
 ## 💖 Apoya este Proyecto
 
-Si este sistema te es útil o te ha ayudado a gestionar tu negocio de manera eficiente, por favor considera apoyar su desarrollo. ¡Cualquier contribución es inmensamente agradecida!
+Si este sistema te es útil o te ha ayudado a gestionar tu negocio de manera eficiente, por favor considera apoyar su desarrollo mediante **GitHub Sponsors**.
 
-Puedes hacerlo a través de **GitHub Sponsors** usando el botón "Sponsor" en la parte superior del repositorio.
+---
 
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia **GNU AGPLv3** (GNU Affero General Public License v3.0).
 
 Copyright (c) 2026 Alexis Corpas Romero - CORJAR Computers.
-
-Esta es una licencia *copyleft* fuerte que garantiza que el software y cualquier modificación del mismo (incluso si se ofrece como servicio a través de una red) permanezcan abiertos y libres. Consulta el archivo `LICENSE` para más detalles.
